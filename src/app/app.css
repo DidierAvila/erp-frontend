@@ -1,0 +1,122 @@
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.toolbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.toolbar-spacer {
+  flex: 1 1 auto;
+}
+
+.app-title {
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.user-info {
+  margin-right: 16px;
+  font-size: 14px;
+}
+
+.content-with-sidebar {
+  display: flex;
+  margin-top: 64px; /* Height of toolbar */
+  width: 100%;
+  min-height: calc(100vh - 64px);
+  position: relative;
+}
+
+.main-content {
+  flex: 1;
+  margin-left: 280px; /* Width of expanded sidebar */
+  transition: margin-left 0.3s ease;
+  min-height: calc(100vh - 64px);
+  overflow-x: hidden;
+  width: calc(100% - 280px);
+}
+
+/* Adjust content margin when sidebar is collapsed */
+.content-with-sidebar.sidebar-collapsed .main-content {
+  margin-left: 60px; /* Width of collapsed sidebar */
+  width: calc(100% - 60px);
+}
+
+/* Reset global para evitar espacios no deseados */
+* {
+  box-sizing: border-box;
+}
+
+/* Asegurar que los componentes hijos respeten el layout */
+.main-content > * {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Estilos para evitar que el contenido se superponga con el sidebar */
+app-dashboard,
+app-users,
+app-products {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Asegurar que el router-outlet ocupe todo el espacio disponible */
+.content-with-sidebar > router-outlet {
+  min-height: calc(100vh - 64px);
+  display: block;
+}
+
+/* Centrar el contenido cuando el espacio es muy amplio */
+@media (min-width: 1400px) {
+  .content-with-sidebar > router-outlet {
+    display: flex;
+    justify-content: center;
+  }
+  
+  .content-with-sidebar > router-outlet > * {
+    max-width: 1200px;
+    width: 100%;
+  }
+}
+
+.login-content {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .user-info {
+    display: none;
+  }
+  
+  .app-title {
+    font-size: 16px;
+  }
+  
+  .content-with-sidebar > router-outlet {
+    margin-left: 0 !important;
+  }
+  
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  
+  .sidebar.show {
+    transform: translateX(0);
+  }
+}

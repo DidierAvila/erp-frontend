@@ -1,6 +1,55 @@
-# ErpFrontend
+# Frontend ERP - Angular con Material Design
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.1.4.
+Este es el frontend del sistema ERP desarrollado con Angular 20 y Angular Material.
+
+## Estructura del Proyecto
+
+```
+src/
+├── app/
+│   ├── core/                    # Servicios, modelos, interceptors
+│   │   ├── models/              # Interfaces y tipos TypeScript
+│   │   │   ├── auth.models.ts
+│   │   │   ├── finance.models.ts
+│   │   │   ├── inventory.models.ts
+│   │   │   ├── purchases.models.ts
+│   │   │   ├── sales.models.ts
+│   │   │   └── common.models.ts
+│   │   └── services/            # Servicios HTTP para cada módulo
+│   │       ├── auth.service.ts
+│   │       ├── finance.service.ts
+│   │       ├── inventory.service.ts
+│   │       ├── purchases.service.ts
+│   │       └── sales.service.ts
+│   ├── shared/                  # Componentes compartidos
+│   ├── features/                # Módulos de funcionalidad
+│   │   ├── auth/                # Autenticación y usuarios
+│   │   │   └── login/
+│   │   ├── dashboard/           # Dashboard principal
+│   │   ├── finance/             # Gestión financiera
+│   │   ├── inventory/           # Gestión de inventario
+│   │   │   └── products/        # Gestión de productos
+│   │   ├── purchases/           # Gestión de compras
+│   │   └── sales/               # Gestión de ventas
+│   ├── app.ts                   # Componente principal
+│   ├── app.routes.ts            # Configuración de rutas
+│   └── app.config.ts            # Configuración de la aplicación
+└── environments/                # Configuración de entornos
+    ├── environment.ts
+    └── environment.prod.ts
+```
+
+## Funcionalidades Implementadas
+
+### ✅ Completado
+- **Configuración base** con Angular Material y tema
+- **Modelos TypeScript** basados en la API Swagger
+- **Servicios HTTP** para todos los microservicios
+- **Componente de Login** funcional con validaciones
+- **Dashboard** con resumen de métricas
+- **Gestión de Productos** con CRUD completo
+- **Navegación** entre módulos
+- **Responsive design** para dispositivos móviles
 
 ## Development server
 

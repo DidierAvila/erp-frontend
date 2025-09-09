@@ -1,0 +1,421 @@
+/* Estilos para la página de usuarios */
+
+.users-container {
+  padding: 20px;
+  min-height: calc(100vh - 64px);
+  background-color: #f5f5f5;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* Header principal */
+.users-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.header-title h1 {
+  margin: 0;
+  color: #1976d2;
+  font-weight: 600;
+}
+
+.header-title mat-icon {
+  font-size: 32px;
+  width: 32px;
+  height: 32px;
+  color: #1976d2;
+}
+
+/* Tabs */
+.users-tabs {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.users-tabs .mat-mdc-tab-group {
+  --mdc-secondary-navigation-tab-container-height: 60px;
+}
+
+.tab-content {
+  padding: 20px;
+}
+
+/* Cards */
+.filters-card,
+.table-card {
+  margin-bottom: 20px;
+}
+
+.filters-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.table-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Filtros */
+.filters-row {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.search-field {
+  flex: 1;
+  min-width: 250px;
+}
+
+/* Título de tabla */
+.table-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.selected-count {
+  background: #1976d2;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Container de tabla */
+.table-container {
+  position: relative;
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.table-container.loading {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Tabla de usuarios */
+.users-table {
+  width: 100%;
+  background: white;
+}
+
+.users-table .mat-mdc-header-row {
+  background-color: #f8f9fa;
+}
+
+.users-table .mat-mdc-header-cell {
+  font-weight: 600;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.users-table .mat-mdc-row {
+  transition: background-color 0.2s ease;
+}
+
+.users-table .mat-mdc-row:hover {
+  background-color: #f8f9fa;
+}
+
+/* Celdas específicas */
+.id-cell {
+  width: 80px;
+  text-align: center;
+}
+
+.user-id {
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.name-cell {
+  min-width: 200px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar mat-icon {
+  font-size: 36px;
+  width: 36px;
+  height: 36px;
+  color: #757575;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-weight: 600;
+  color: #212529;
+  margin-bottom: 2px;
+}
+
+.user-email {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.phone-cell {
+  min-width: 150px;
+}
+
+.contact-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  vertical-align: middle;
+  color: #28a745;
+}
+
+.no-data {
+  color: #6c757d;
+  font-style: italic;
+  font-size: 12px;
+}
+
+/* Chips de tipo de usuario */
+.type-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.type-admin {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.type-manager {
+  background: #d4edda;
+  color: #155724;
+}
+
+.type-employee {
+  background: #cce5ff;
+  color: #004085;
+}
+
+.type-viewer {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+/* Badges de estado */
+.status-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-active {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-inactive {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.status-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+/* Fecha */
+.date-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.date-main {
+  font-weight: 500;
+  color: #212529;
+  font-size: 13px;
+}
+
+.date-time {
+  font-size: 11px;
+  color: #6c757d;
+}
+
+/* Acciones */
+.actions-cell {
+  width: 120px;
+  text-align: center;
+}
+
+.action-button {
+  margin: 0 2px;
+}
+
+/* Formulario de usuario */
+.user-form-container {
+  padding: 20px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.form-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.form-row mat-form-field {
+  flex: 1;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #dee2e6;
+}
+
+/* Estados de carga */
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .users-container {
+    padding: 10px;
+  }
+  
+  .users-header {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+  
+  .filters-row {
+    flex-direction: column;
+  }
+  
+  .search-field {
+    min-width: 100%;
+  }
+  
+  .form-row {
+    flex-direction: column;
+  }
+  
+  .table-container {
+    max-height: 60vh;
+  }
+  
+  /* Ocultar columnas en móvil */
+  .users-table .mat-column-phone,
+  .users-table .mat-column-createdAt {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .users-table .mat-column-select,
+  .users-table .mat-column-userTypeId {
+    display: none;
+  }
+}
+
+/* Animaciones */
+.users-table .mat-mdc-row {
+  animation: slideIn 0.3s ease-in-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mejoras de accesibilidad */
+.users-table .mat-mdc-row:focus {
+  outline: 2px solid #1976d2;
+  outline-offset: -2px;
+}
+
+.action-button:focus {
+  outline: 2px solid #1976d2;
+}
+
+/* Scrollbar personalizada */
+.table-container::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.table-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
