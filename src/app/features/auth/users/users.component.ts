@@ -2,8 +2,6 @@ import { Component, OnInit, AfterViewInit, signal, ViewChild } from '@angular/co
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
-import { SelectionModel } from '@angular/cdk/collections';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatCardModule } from '@angular/material/card';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
@@ -16,8 +14,6 @@ import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
 import { MatSortModule, MatSort } from '@angular/material/sort';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatTabsModule } from '@angular/material/tabs';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
@@ -36,7 +32,6 @@ interface ExtendedUserDto extends UserDto {
     CommonModule,
     ReactiveFormsModule,
     MatTableModule,
-    MatCheckboxModule,
     MatCardModule,
     MatInputModule,
     MatButtonModule,
@@ -49,73 +44,182 @@ interface ExtendedUserDto extends UserDto {
     MatSortModule,
     MatSelectModule,
     MatTooltipModule,
-    MatChipsModule,
-    MatTabsModule,
     MatBadgeModule,
     MatMenuModule,
     MatDividerModule
   ],
   template: `
-    <div class="users-container">
-      <!-- Header Principal -->
-      <div class="users-header">
-        <div class="header-title">
-          <mat-icon>people</mat-icon>
-          <h1>Gestión de Usuarios</h1>
-          <mat-chip-set>
-            <mat-chip [matBadge]="getTotalUsers()" matBadgePosition="after">
-              Total: {{ getTotalUsers() }}
-            </mat-chip>
-            <mat-chip [matBadge]="getActiveUsers()" matBadgePosition="after" matBadgeColor="accent">
-              Activos: {{ getActiveUsers() }}
-            </mat-chip>
-          </mat-chip-set>
+  <div class="users-container">
+      <!-- Formulario de Usuario (Solo visible cuando showForm es true) -->
+      <mat-card class="form-card" *ngIf="showForm()">
+        <mat-card-header>
+          <mat-card-title>
+            <div class="form-header">
+              <mat-icon>{{isViewingUser() ? 'visibility' : (editingUser() ? 'edit' : 'person_add')}}</mat-icon>
+              <span>{{isViewingUser() ? 'Ver Usuario' : (editingUser() ? 'Editar Usuario' : 'Crear Nuevo Usuario')}}</span>
+            </div>
+          </mat-card-title>
+        </mat-card-header>
+        
+        <mat-card-content>
+          <form [formGroup]="userForm" class="user-form">
+            <!-- Información Personal -->
+            <div class="form-section">
+              <h3 class="section-title">
+                <mat-icon>person</mat-icon>
+                Información Personal
+              </h3>
+              
+              <div class="form-row">
+                <mat-form-field appearance="outline" class="full-width" >
+                  <mat-label>Nombre Completo</mat-label>
+                  <input matInput formControlName="name" placeholder="Juan Pérez García" required>
+                  <mat-icon matSuffix>badge</mat-icon>
+                  <mat-error *ngIf="userForm.get('name')?.hasError('required')">
+                    El nombre es requerido
+                  </mat-error>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Correo Electrónico</mat-label>
+                  <input matInput type="email" formControlName="email" placeholder="juan@empresa.com" required>
+                  <mat-icon matSuffix>email</mat-icon>
+                  <mat-error *ngIf="userForm.get('email')?.hasError('required')">
+                    El email es requerido
+                  </mat-error>
+                  <mat-error *ngIf="userForm.get('email')?.hasError('email')">
+                    El formato del email es inválido
+                  </mat-error>
+                </mat-form-field>
+              </div>
+
+              <div class="form-row">
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Número de Teléfono</mat-label>
+                  <input matInput formControlName="phone" placeholder="+57 300 123 4567">
+                  <mat-icon matSuffix>phone</mat-icon>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Tipo de Usuario</mat-label>
+                  <mat-select formControlName="userTypeId" required>
+                    <mat-option value="admin">
+                      <mat-icon>admin_panel_settings</mat-icon>
+                      Administrador
+                    </mat-option>
+                    <mat-option value="manager">
+                      <mat-icon>supervisor_account</mat-icon>
+                      Gerente
+                    </mat-option>
+                    <mat-option value="employee">
+                      <mat-icon>person</mat-icon>
+                      Empleado
+                    </mat-option>
+                    <mat-option value="viewer">
+                      <mat-icon>visibility</mat-icon>
+                      Visualizador
+                    </mat-option>
+                  </mat-select>
+                  <mat-icon matSuffix>security</mat-icon>
+                  <mat-error *ngIf="userForm.get('userTypeId')?.hasError('required')">
+                    El tipo de usuario es requerido
+                  </mat-error>
+                </mat-form-field>
+              </div>
+            </div>
+
+            <!-- Credenciales (solo para nuevos usuarios) -->
+            <div class="form-section" *ngIf="!editingUser() && !isViewingUser()">
+              <h3 class="section-title">
+                <mat-icon>lock</mat-icon>
+                Credenciales de Acceso
+              </h3>
+              
+              <div class="form-row">
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Contraseña</mat-label>
+                  <input matInput type="password" formControlName="password" required>
+                  <mat-icon matSuffix>lock</mat-icon>
+                  <mat-error *ngIf="userForm.get('password')?.hasError('required')">
+                    La contraseña es requerida
+                  </mat-error>
+                  <mat-error *ngIf="userForm.get('password')?.hasError('minlength')">
+                    Mínimo 6 caracteres
+                  </mat-error>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Confirmar Contraseña</mat-label>
+                  <input matInput type="password" formControlName="confirmPassword" required>
+                  <mat-icon matSuffix>lock_outline</mat-icon>
+                  <mat-error *ngIf="userForm.get('confirmPassword')?.hasError('required')">
+                    Debe confirmar la contraseña
+                  </mat-error>
+                  <mat-error *ngIf="userForm.get('confirmPassword')?.hasError('mustMatch')">
+                    Las contraseñas no coinciden
+                  </mat-error>
+                </mat-form-field>
+              </div>
+            </div>
+          </form>
+        </mat-card-content>
+
+        <mat-card-actions align="end" class="form-actions">
+          <button mat-button (click)="cancelForm()" [disabled]="isLoading()">
+            <mat-icon>{{isViewingUser() ? 'arrow_back' : 'cancel'}}</mat-icon>
+            {{isViewingUser() ? 'Volver' : 'Cancelar'}}
+          </button>
+          <button 
+            *ngIf="!isViewingUser()"
+            mat-raised-button 
+            color="primary" 
+            (click)="saveUser()"
+            [disabled]="!userForm.valid || isLoading()">
+            <mat-icon>{{editingUser() ? 'save' : 'person_add'}}</mat-icon>
+            {{editingUser() ? 'Actualizar Usuario' : 'Crear Usuario'}}
+          </button>
+        </mat-card-actions>
+      </mat-card>
+
+      <!-- Filtros y Tabla -->
+      <div class="content-section" *ngIf="!showForm()">
+        <!-- Botón Crear Usuario -->
+        <div class="create-user-section">
+          <button mat-raised-button class="create-user-btn" (click)="openUserForm()" [disabled]="isLoading()">
+            <mat-icon>person_add</mat-icon>
+            Crear Usuario
+          </button>
         </div>
-        <button mat-raised-button color="primary" (click)="openUserForm()">
-          <mat-icon>person_add</mat-icon>
-          Nuevo Usuario
-        </button>
-      </div>
 
-      <!-- Tabs de Navegación -->
-      <mat-tab-group [(selectedIndex)]="selectedTab" class="users-tabs">
-        <!-- Tab: Lista de Usuarios -->
-        <mat-tab>
-          <ng-template mat-tab-label>
-            <mat-icon>view_list</mat-icon>
-            Lista de Usuarios
-          </ng-template>
-          
-          <!-- Contenido del Tab: Lista -->
-          <div class="tab-content">
-            <!-- Barra de Herramientas y Filtros -->
-            <mat-card class="filters-card">
-              <mat-card-content>
-                <div class="filters-row">
-                  <mat-form-field appearance="outline" class="search-field">
-                    <mat-label>Buscar usuarios</mat-label>
-                    <input matInput (keyup)="applyFilter($event)" placeholder="Nombre, email, teléfono...">
-                    <mat-icon matSuffix>search</mat-icon>
-                  </mat-form-field>
+        <!-- Barra de Herramientas y Filtros -->
+        <mat-card class="filters-card">
+          <mat-card-content>
+            <div class="filters-row">
+              <mat-form-field appearance="outline" class="search-field">
+                <mat-label>Buscar usuarios</mat-label>
+                <input matInput (keyup)="applyFilter($event)" placeholder="Nombre, email, teléfono...">
+                <mat-icon matSuffix>search</mat-icon>
+              </mat-form-field>
 
-                  <mat-form-field appearance="outline">
-                    <mat-label>Filtrar por tipo</mat-label>
-                    <mat-select (selectionChange)="filterByUserType($event.value)">
-                      <mat-option value="">Todos los tipos</mat-option>
-                      <mat-option value="admin">Administradores</mat-option>
-                      <mat-option value="manager">Gerentes</mat-option>
-                      <mat-option value="employee">Empleados</mat-option>
-                      <mat-option value="viewer">Visualizadores</mat-option>
-                    </mat-select>
-                  </mat-form-field>
+              <mat-form-field appearance="outline" class="filter-field">
+                <mat-label>Filtrar por tipo</mat-label>
+                <mat-select (selectionChange)="filterByUserType($event.value)">
+                  <mat-option value="">Todos los tipos</mat-option>
+                  <mat-option value="admin">Administradores</mat-option>
+                  <mat-option value="manager">Gerentes</mat-option>
+                  <mat-option value="employee">Empleados</mat-option>
+                  <mat-option value="viewer">Visualizadores</mat-option>
+                </mat-select>
+              </mat-form-field>
 
-                  <button mat-icon-button (click)="refreshUsers()" matTooltip="Actualizar lista">
-                    <mat-icon>refresh</mat-icon>
-                  </button>
+              <div class="filter-actions">
+                <button mat-icon-button (click)="refreshUsers()" matTooltip="Actualizar lista" class="action-btn">
+                  <mat-icon>refresh</mat-icon>
+                </button>
 
-                  <button mat-icon-button [matMenuTriggerFor]="exportMenu" matTooltip="Exportar">
-                    <mat-icon>file_download</mat-icon>
-                  </button>
+                <button mat-icon-button [matMenuTriggerFor]="exportMenu" matTooltip="Exportar" class="action-btn">
+                  <mat-icon>file_download</mat-icon>
+                </button>
+              </div>
                   <mat-menu #exportMenu="matMenu">
                     <button mat-menu-item (click)="exportToExcel()">
                       <mat-icon>table_view</mat-icon>
@@ -132,44 +236,10 @@ interface ExtendedUserDto extends UserDto {
 
             <!-- Tabla Principal -->
             <mat-card class="table-card">
-              <mat-card-header>
-                <mat-card-title>
-                  <div class="table-title">
-                    <span>Usuarios Registrados</span>
-                    <div class="table-actions">
-                      <button mat-icon-button (click)="selectAllUsers()" matTooltip="Seleccionar todos">
-                        <mat-icon>select_all</mat-icon>
-                      </button>
-                      <span class="selected-count" *ngIf="selectedUsers.length > 0">
-                        {{ selectedUsers.length }} seleccionado(s)
-                      </span>
-                    </div>
-                  </div>
-                </mat-card-title>
-              </mat-card-header>
-
               <mat-card-content>
                 <div class="table-container" [class.loading]="isLoading()">
                   <table mat-table [dataSource]="dataSource" matSort class="users-table">
                     
-                    <!-- Columna de Selección -->
-                    <ng-container matColumnDef="select">
-                      <th mat-header-cell *matHeaderCellDef>
-                        <mat-checkbox 
-                          (change)="$event ? masterToggle() : null"
-                          [checked]="selection.hasValue() && isAllSelected()"
-                          [indeterminate]="selection.hasValue() && !isAllSelected()">
-                        </mat-checkbox>
-                      </th>
-                      <td mat-cell *matCellDef="let user">
-                        <mat-checkbox 
-                          (click)="$event.stopPropagation()"
-                          (change)="$event ? selection.toggle(user) : null"
-                          [checked]="selection.isSelected(user)">
-                        </mat-checkbox>
-                      </td>
-                    </ng-container>
-
                     <!-- Columna ID -->
                     <ng-container matColumnDef="id">
                       <th mat-header-cell *matHeaderCellDef mat-sort-header>ID</th>
@@ -178,19 +248,24 @@ interface ExtendedUserDto extends UserDto {
                       </td>
                     </ng-container>
 
-                    <!-- Columna Avatar y Nombre -->
+                    <!-- Columna Nombre -->
                     <ng-container matColumnDef="name">
-                      <th mat-header-cell *matHeaderCellDef mat-sort-header>Usuario</th>
+                      <th mat-header-cell *matHeaderCellDef mat-sort-header>Nombre</th>
                       <td mat-cell *matCellDef="let user" class="name-cell">
                         <div class="user-info">
                           <div class="user-avatar">
                             <mat-icon>account_circle</mat-icon>
                           </div>
-                          <div class="user-details">
-                            <div class="user-name">{{user.name}}</div>
-                            <div class="user-email">{{user.email}}</div>
-                          </div>
+                          <div class="user-name">{{user.name}}</div>
                         </div>
+                      </td>
+                    </ng-container>
+
+                    <!-- Columna Email -->
+                    <ng-container matColumnDef="email">
+                      <th mat-header-cell *matHeaderCellDef mat-sort-header>Email</th>
+                      <td mat-cell *matCellDef="let user" class="email-cell">
+                        <span class="user-email">{{user.email}}</span>
                       </td>
                     </ng-container>
 
@@ -212,10 +287,10 @@ interface ExtendedUserDto extends UserDto {
                     <ng-container matColumnDef="userTypeId">
                       <th mat-header-cell *matHeaderCellDef mat-sort-header>Tipo</th>
                       <td mat-cell *matCellDef="let user" class="type-cell">
-                        <mat-chip [class]="getUserTypeClass(user.userTypeId)" selected>
+                        <span [class]="getUserTypeClass(user.userTypeId)" class="user-type-badge">
                           <mat-icon>{{getUserTypeIcon(user.userTypeId)}}</mat-icon>
                           {{getUserTypeLabel(user.userTypeId)}}
-                        </mat-chip>
+                        </span>
                       </td>
                     </ng-container>
 
@@ -223,10 +298,10 @@ interface ExtendedUserDto extends UserDto {
                     <ng-container matColumnDef="status">
                       <th mat-header-cell *matHeaderCellDef>Estado</th>
                       <td mat-cell *matCellDef="let user" class="status-cell">
-                        <mat-chip [class]="getUserStatusClass(user)" selected>
+                        <span [class]="getUserStatusClass(user)" class="user-status-badge">
                           <mat-icon>{{getUserStatusIcon(user)}}</mat-icon>
                           {{getUserStatus(user)}}
-                        </mat-chip>
+                        </span>
                       </td>
                     </ng-container>
 
@@ -276,9 +351,7 @@ interface ExtendedUserDto extends UserDto {
 
                     <!-- Header y Filas -->
                     <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
-                    <tr mat-row *matRowDef="let row; columns: displayedColumns;" 
-                        [class.selected-row]="selection.isSelected(row)"
-                        (click)="selection.toggle(row)"></tr>
+                    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
 
                     <!-- Fila para cuando no hay datos -->
                     <tr class="mat-row" *matNoDataRow>
@@ -299,161 +372,46 @@ interface ExtendedUserDto extends UserDto {
                 <!-- Paginador -->
                 <mat-paginator 
                   #paginator
-                  [pageSizeOptions]="[5, 10, 25, 50, 100]"
+                  [pageSizeOptions]="[10]"
                   [pageSize]="10"
-                  showFirstLastButtons
+                  [hidePageSize]="true"
+                  [disabled]="true"
                   class="users-paginator">
                 </mat-paginator>
               </mat-card-content>
             </mat-card>
-          </div>
-        </mat-tab>
-
-        <!-- Tab: Formulario de Usuario -->
-        <mat-tab [disabled]="!showForm()">
-          <ng-template mat-tab-label>
-            <mat-icon>{{editingUser() ? 'edit' : 'person_add'}}</mat-icon>
-            {{editingUser() ? 'Editar Usuario' : 'Nuevo Usuario'}}
-          </ng-template>
-          
-          <div class="tab-content" *ngIf="showForm()">
-            <mat-card class="form-card">
-              <mat-card-header>
-                <mat-card-title>
-                  <div class="form-header">
-                    <mat-icon>{{editingUser() ? 'edit' : 'person_add'}}</mat-icon>
-                    <span>{{editingUser() ? 'Editar Usuario' : 'Crear Nuevo Usuario'}}</span>
-                  </div>
-                </mat-card-title>
-              </mat-card-header>
-              
-              <mat-card-content>
-                <form [formGroup]="userForm" class="user-form">
-                  <!-- Información Personal -->
-                  <div class="form-section">
-                    <h3 class="section-title">
-                      <mat-icon>person</mat-icon>
-                      Información Personal
-                    </h3>
-                    
-                    <div class="form-row">
-                      <mat-form-field appearance="outline" class="full-width">
-                        <mat-label>Nombre Completo</mat-label>
-                        <input matInput formControlName="name" placeholder="Juan Pérez García" required>
-                        <mat-icon matSuffix>badge</mat-icon>
-                        <mat-error *ngIf="userForm.get('name')?.hasError('required')">
-                          El nombre es requerido
-                        </mat-error>
-                      </mat-form-field>
-
-                      <mat-form-field appearance="outline" class="full-width">
-                        <mat-label>Correo Electrónico</mat-label>
-                        <input matInput type="email" formControlName="email" placeholder="juan@empresa.com" required>
-                        <mat-icon matSuffix>email</mat-icon>
-                        <mat-error *ngIf="userForm.get('email')?.hasError('required')">
-                          El email es requerido
-                        </mat-error>
-                        <mat-error *ngIf="userForm.get('email')?.hasError('email')">
-                          El formato del email es inválido
-                        </mat-error>
-                      </mat-form-field>
-                    </div>
-
-                    <div class="form-row">
-                      <mat-form-field appearance="outline" class="full-width">
-                        <mat-label>Número de Teléfono</mat-label>
-                        <input matInput formControlName="phone" placeholder="+57 300 123 4567">
-                        <mat-icon matSuffix>phone</mat-icon>
-                      </mat-form-field>
-
-                      <mat-form-field appearance="outline" class="full-width">
-                        <mat-label>Tipo de Usuario</mat-label>
-                        <mat-select formControlName="userTypeId" required>
-                          <mat-option value="admin">
-                            <mat-icon>admin_panel_settings</mat-icon>
-                            Administrador
-                          </mat-option>
-                          <mat-option value="manager">
-                            <mat-icon>supervisor_account</mat-icon>
-                            Gerente
-                          </mat-option>
-                          <mat-option value="employee">
-                            <mat-icon>person</mat-icon>
-                            Empleado
-                          </mat-option>
-                          <mat-option value="viewer">
-                            <mat-icon>visibility</mat-icon>
-                            Visualizador
-                          </mat-option>
-                        </mat-select>
-                        <mat-icon matSuffix>security</mat-icon>
-                        <mat-error *ngIf="userForm.get('userTypeId')?.hasError('required')">
-                          El tipo de usuario es requerido
-                        </mat-error>
-                      </mat-form-field>
-                    </div>
-                  </div>
-
-                  <!-- Credenciales (solo para nuevos usuarios) -->
-                  <div class="form-section" *ngIf="!editingUser()">
-                    <h3 class="section-title">
-                      <mat-icon>lock</mat-icon>
-                      Credenciales de Acceso
-                    </h3>
-                    
-                    <div class="form-row">
-                      <mat-form-field appearance="outline" class="full-width">
-                        <mat-label>Contraseña</mat-label>
-                        <input matInput type="password" formControlName="password" required>
-                        <mat-icon matSuffix>lock</mat-icon>
-                        <mat-error *ngIf="userForm.get('password')?.hasError('required')">
-                          La contraseña es requerida
-                        </mat-error>
-                        <mat-error *ngIf="userForm.get('password')?.hasError('minlength')">
-                          Mínimo 6 caracteres
-                        </mat-error>
-                      </mat-form-field>
-
-                      <mat-form-field appearance="outline" class="full-width">
-                        <mat-label>Confirmar Contraseña</mat-label>
-                        <input matInput type="password" formControlName="confirmPassword" required>
-                        <mat-icon matSuffix>lock_outline</mat-icon>
-                        <mat-error *ngIf="userForm.get('confirmPassword')?.hasError('required')">
-                          Debe confirmar la contraseña
-                        </mat-error>
-                        <mat-error *ngIf="userForm.get('confirmPassword')?.hasError('mustMatch')">
-                          Las contraseñas no coinciden
-                        </mat-error>
-                      </mat-form-field>
-                    </div>
-                  </div>
-                </form>
-              </mat-card-content>
-
-              <mat-card-actions align="end" class="form-actions">
-                <button mat-button (click)="cancelForm()" [disabled]="isLoading()">
-                  <mat-icon>cancel</mat-icon>
-                  Cancelar
-                </button>
-                <button 
-                  mat-raised-button 
-                  color="primary" 
-                  (click)="saveUser()"
-                  [disabled]="!userForm.valid || isLoading()">
-                  <mat-icon>{{editingUser() ? 'save' : 'person_add'}}</mat-icon>
-                  {{editingUser() ? 'Actualizar Usuario' : 'Crear Usuario'}}
-                </button>
-              </mat-card-actions>
-            </mat-card>
-          </div>
-        </mat-tab>
-      </mat-tab-group>
+      </div>
     </div>
   `,
   styles: [`
     .users-container {
       padding: 0;
       height: 100%;
+      overflow: hidden;
+    }
+
+
+
+    .content-section {
+      margin-top: 12px;
+    }
+
+    .create-user-section {
+      display: flex;
+      justify-content: flex-start;
+      margin-bottom: 16px;
+      padding: 0 4px;
+    }
+
+    .form-card {
+      margin-bottom: 20px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .form-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
 
     .section-header {
@@ -483,15 +441,39 @@ interface ExtendedUserDto extends UserDto {
       color: #333;
     }
 
-    .form-card {
-      margin-bottom: 24px;
-    }
-
     .user-form {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 20px;
       margin-top: 16px;
+    }
+
+    .form-section {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 20px;
+      background: #fafafa;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 16px 0;
+      color: #1976d2;
+      font-weight: 500;
+    }
+
+    .section-title mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+
+    .form-actions {
+      padding: 16px 24px;
+      border-top: 1px solid #e0e0e0;
+      background: #fafafa;
     }
 
     .form-row {
@@ -503,44 +485,313 @@ interface ExtendedUserDto extends UserDto {
       flex: 1;
     }
 
+    .filters-card {
+      margin-bottom: 16px;
+      box-shadow: none;
+      border-radius: 8px;
+      border: none;
+    }
+
+    .filters-card .mat-mdc-card-content {
+      padding: 16px 20px !important;
+      border-bottom: none !important;
+    }
+
+    .filters-row {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+      min-height: 48px;
+      border: none;
+      box-shadow: none;
+    }
+
+    .filters-row .mat-mdc-form-field {
+      font-size: 14px;
+    }
+
+    .search-field {
+      min-width: 300px;
+      flex: 1;
+    }
+
+    .filter-field {
+      min-width: 180px;
+      width: 180px;
+    }
+
+    .filter-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      height: 36px;
+    }
+
+    .action-btn {
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 4px;
+      color: #666;
+      transition: all 0.2s ease;
+    }
+
+    .action-btn:hover {
+      background-color: #f5f5f5;
+      color: #333;
+    }
+
+    .create-user-btn {
+      background-color: #1976d2;
+      color: white;
+      font-weight: 500;
+      box-shadow: 0 2px 4px rgba(25, 118, 210, 0.3);
+      flex-shrink: 0;
+      height: 40px;
+    }
+
+    .create-user-btn:hover {
+      background-color: #1565c0;
+      box-shadow: 0 4px 8px rgba(25, 118, 210, 0.4);
+    }
+
+    .create-user-btn:disabled {
+      background-color: #e0e0e0;
+      color: #9e9e9e;
+      box-shadow: none;
+    }
+
+    .filter-separator {
+      width: 1px;
+      height: 40px;
+      background-color: #e0e0e0;
+      margin: 0 16px;
+      flex-shrink: 0;
+    }
+
     .table-card {
       width: 100%;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
 
     .table-container {
       width: 100%;
-      overflow: auto;
+      overflow: visible;
     }
 
     .users-table {
       width: 100%;
     }
 
-    .user-type-badge {
+    .users-paginator {
+      border-top: 1px solid #e0e0e0;
+    }
+
+    .user-type-badge, .user-status-badge {
       padding: 4px 8px;
       border-radius: 12px;
       font-size: 12px;
       font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
 
-    .user-type-admin {
+    .user-type-badge mat-icon,
+    .user-status-badge mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+
+    .type-admin {
       background-color: #f3e5f5;
       color: #7b1fa2;
     }
 
-    .user-type-manager {
+    .type-manager {
       background-color: #e8f5e8;
       color: #2e7d32;
     }
 
-    .user-type-employee {
+    .type-employee {
       background-color: #e3f2fd;
       color: #1976d2;
     }
 
-    .user-type-viewer {
+    .type-viewer {
       background-color: #fff3e0;
       color: #f57c00;
+    }
+
+    .status-active {
+      background-color: #e8f5e8;
+      color: #2e7d32;
+    }
+
+    .status-inactive {
+      background-color: #ffebee;
+      color: #c62828;
+    }
+
+    /* Estilos específicos para columnas de tabla */
+    .id-cell {
+      width: 80px;
+      max-width: 80px;
+    }
+
+    .user-id {
+      font-family: monospace;
+      font-weight: bold;
+      color: #666;
+    }
+
+    .name-cell {
+      width: 200px;
+      max-width: 200px;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .user-avatar {
+      flex-shrink: 0;
+    }
+
+    .user-avatar mat-icon {
+      font-size: 24px;
+      width: 24px;
+      height: 24px;
+      color: #666;
+    }
+
+    .user-name {
+      font-weight: 500;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .email-cell {
+      width: 220px;
+      max-width: 220px;
+    }
+
+    .user-email {
+      color: #666;
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .phone-cell {
+      width: 140px;
+      max-width: 140px;
+    }
+
+    .contact-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+
+    .no-data {
+      color: #999;
+      font-style: italic;
+      font-size: 13px;
+    }
+
+    .type-cell {
+      width: 120px;
+      max-width: 120px;
+    }
+
+    .status-cell {
+      width: 100px;
+      max-width: 100px;
+    }
+
+    .date-cell {
+      width: 120px;
+      max-width: 120px;
+    }
+
+    .date-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .date {
+      font-size: 13px;
+      color: #333;
+    }
+
+    .time {
+      font-size: 11px;
+      color: #666;
+    }
+
+    .actions-cell {
+      width: 120px;
+      max-width: 120px;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 4px;
+    }
+
+    .view-btn {
+      color: #000;
+    }
+
+    .edit-btn {
+      color: #000;
+    }
+
+    .more-btn {
+      color: #000;
+    }
+
+    .delete-menu-item {
+      color: #f44336;
+    }
+
+    .actions-header {
+      text-align: center;
+    }
+
+    .no-data-row {
+      height: 200px;
+      text-align: center;
+    }
+
+    .no-data-message {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      color: #666;
+    }
+
+    .no-data-message mat-icon {
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
+      color: #ccc;
+    }
+
+    .selected-row {
+      background-color: #e3f2fd !important;
     }
 
     @media (max-width: 768px) {
@@ -563,15 +814,14 @@ export class UsersComponent implements OnInit {
 
   // Formulario y estado
   userForm: FormGroup;
-  showForm = signal(false);
   editingUser = signal<ExtendedUserDto | null>(null);
   isLoading = signal(false);
-  selectedTab = signal(0);
+  showForm = signal(false);
+  isViewingUser = signal(false);
 
   // Datos y configuración de tabla
-  displayedColumns: string[] = ['select', 'id', 'name', 'phone', 'userTypeId', 'status', 'createdAt', 'actions'];
+  displayedColumns: string[] = ['id', 'name', 'email', 'phone', 'userTypeId', 'status', 'createdAt', 'actions'];
   dataSource = new MatTableDataSource<ExtendedUserDto>([]);
-  selection = new SelectionModel<ExtendedUserDto>(true, []);
 
   // Datos simulados
   mockUsers: ExtendedUserDto[] = [
@@ -646,6 +896,24 @@ export class UsersComponent implements OnInit {
       userTypeId: 'viewer',
       isActive: true,
       createdAt: '2025-08-30T15:10:00'
+    },
+    {
+      id: '9',
+      name: 'Diego Morales Ruiz',
+      email: 'diego.morales@empresa.com',
+      phone: '+57 307 890 1234',
+      userTypeId: 'employee',
+      isActive: true,
+      createdAt: '2025-09-05T12:25:00'
+    },
+    {
+      id: '10',
+      name: 'Sofia Valencia Torres',
+      email: 'sofia.valencia@empresa.com',
+      phone: '+57 308 901 2345',
+      userTypeId: 'manager',
+      isActive: true,
+      createdAt: '2025-09-08T09:40:00'
     }
   ];
 
@@ -700,10 +968,6 @@ export class UsersComponent implements OnInit {
     return this.dataSource.data.filter(user => user.isActive).length;
   }
 
-  get selectedUsers(): ExtendedUserDto[] {
-    return this.selection.selected;
-  }
-
   // Métodos de carga de datos
   loadUsers(): void {
     this.isLoading.set(true);
@@ -747,31 +1011,13 @@ export class UsersComponent implements OnInit {
     }
   }
 
-  // Métodos de selección
-  isAllSelected(): boolean {
-    const numSelected = this.selection.selected.length;
-    const numRows = this.dataSource.data.length;
-    return numSelected === numRows;
-  }
-
-  masterToggle(): void {
-    if (this.isAllSelected()) {
-      this.selection.clear();
-    } else {
-      this.dataSource.data.forEach(row => this.selection.select(row));
-    }
-  }
-
-  selectAllUsers(): void {
-    this.masterToggle();
-  }
-
   // Métodos de formulario
   openUserForm(): void {
     this.showForm.set(true);
-    this.selectedTab.set(1);
     this.editingUser.set(null);
+    this.isViewingUser.set(false);
     this.userForm.reset();
+    this.userForm.enable();
   }
 
   saveUser(): void {
@@ -806,31 +1052,37 @@ export class UsersComponent implements OnInit {
         this.dataSource.data = [...this.mockUsers];
         this.isLoading.set(false);
         this.showForm.set(false);
-        this.selectedTab.set(0);
       }, 1500);
     }
   }
 
   editUser(user: ExtendedUserDto): void {
     this.editingUser.set(user);
+    this.isViewingUser.set(false);
     this.userForm.patchValue({
       name: user.name,
       email: user.email,
       phone: user.phone,
       userTypeId: user.userTypeId
     });
+    // Habilitar todos los campos del formulario para modo de edición
+    this.userForm.enable();
     this.showForm.set(true);
-    this.selectedTab.set(1);
   }
 
   viewUser(user: ExtendedUserDto): void {
-    const dialogData = {
-      title: 'Detalles del Usuario',
-      user: user,
-      actions: ['close']
-    };
-    
-    this.snackBar.open(`Viendo detalles de ${user.name}`, 'Cerrar', { duration: 2000 });
+    this.editingUser.set(user);
+    this.isViewingUser.set(true);
+    this.userForm.patchValue({
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      userTypeId: user.userTypeId
+    });
+    // Deshabilitar todos los campos del formulario para modo de solo lectura
+    this.userForm.disable();
+    this.showForm.set(true);
+    this.snackBar.open(`Visualizando detalles de ${user.name}`, 'Cerrar', { duration: 2000 });
   }
 
   deleteUser(user: ExtendedUserDto): void {
@@ -839,7 +1091,6 @@ export class UsersComponent implements OnInit {
       if (index !== -1) {
         this.mockUsers.splice(index, 1);
         this.dataSource.data = [...this.mockUsers];
-        this.selection.clear();
         this.snackBar.open('Usuario eliminado correctamente', 'Cerrar', { duration: 3000 });
       }
     }
@@ -847,9 +1098,10 @@ export class UsersComponent implements OnInit {
 
   cancelForm(): void {
     this.showForm.set(false);
-    this.selectedTab.set(0);
     this.editingUser.set(null);
+    this.isViewingUser.set(false);
     this.userForm.reset();
+    this.userForm.enable();
   }
 
   // Métodos de estado y utilidades

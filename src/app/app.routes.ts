@@ -20,7 +20,12 @@ export const routes: Routes = [
   },
   {
     path: 'users',
-    loadComponent: () => import('./features/auth/users/users.component').then(c => c.UsersComponent),
+    loadComponent: () => import('./features/auth/users/users-page.component').then(c => c.UsersPageComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'roles',
+    loadComponent: () => import('./features/auth/roles/roles-page.component').then(c => c.RolesPageComponent),
     canActivate: [authGuard]
   },
   // Redirects simples (sin guards - los guards se aplican en las rutas de destino)

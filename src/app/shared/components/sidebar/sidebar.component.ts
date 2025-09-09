@@ -6,11 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterModule } from '@angular/router';
-import { SidebarService, ContentService } from '../../../core/services';
-import { AuthManagementComponent } from '../../../features/auth/auth-management.component';
-import { UsersComponent } from '../../../features/auth/users/users.component';
-import { RolesComponent } from '../../../features/auth/roles/roles.component';
-import { ProductsComponent } from '../../../features/inventory/products/products.component';
+import { SidebarService } from '../../../core/services';
 
 interface MenuItem {
   label: string;
@@ -70,28 +66,21 @@ interface MenuItem {
                 @if (isExpanded()) {
                   <div class="submenu-container">
                     @for (child of item.children; track child.label) {
-                      @if (child.action) {
-                        <a mat-list-item (click)="child.action!()" 
-                           class="submenu-item"
-                           [class.active-menu-item]="child.id && isMenuItemActive(child.id)">
-                          <mat-icon matListItemIcon>{{ child.icon }}</mat-icon>
-                          <span matListItemTitle>{{ child.label }}</span>
-                        </a>
-                      } @else {
-                        <a mat-list-item [routerLink]="child.route" 
-                           class="submenu-item"
-                           [class.active-menu-item]="child.id && isMenuItemActive(child.id)">
-                          <mat-icon matListItemIcon>{{ child.icon }}</mat-icon>
-                          <span matListItemTitle>{{ child.label }}</span>
-                        </a>
-                      }
+                      <a mat-list-item [routerLink]="child.route" 
+                         routerLinkActive="active-menu-item"
+                         class="submenu-item">
+                        <mat-icon matListItemIcon>{{ child.icon }}</mat-icon>
+                        <span matListItemTitle>{{ child.label }}</span>
+                      </a>
                     }
                   </div>
                 }
               </mat-expansion-panel>
             } @else {
               <!-- Menu simple sin submenu -->
-              <a mat-list-item [routerLink]="item.route" class="menu-item">
+              <a mat-list-item [routerLink]="item.route" 
+                 routerLinkActive="active-menu-item"
+                 class="menu-item">
                 <mat-icon matListItemIcon 
                          [matTooltip]="!isExpanded() ? item.label : ''" 
                          [matTooltipDisabled]="isExpanded()"
@@ -236,13 +225,10 @@ interface MenuItem {
   `]
 })
 export class SidebarComponent {
-  activeMenuItem: any;
-
+  
   constructor(
-    public sidebarService: SidebarService,
-    private contentService: ContentService
+    public sidebarService: SidebarService
   ) {
-    this.activeMenuItem = this.contentService.activeMenuItem$;
   }
   
   get isExpanded() {
@@ -264,15 +250,12 @@ export class SidebarComponent {
         { 
           label: 'Usuarios', 
           icon: 'people',
-          route: '/users',
-          id: 'admin-users'
+          route: '/users'
         },
         { 
           label: 'Roles', 
           icon: 'admin_panel_settings',
-          component: RolesComponent,
-          action: () => this.loadRoles(),
-          id: 'admin-roles'
+          route: '/roles'
         }
       ]
     },
@@ -283,9 +266,7 @@ export class SidebarComponent {
         { 
           label: 'Productos', 
           icon: 'shopping_bag', 
-          component: ProductsComponent,
-          action: () => this.loadProducts(),
-          id: 'inventory-products'
+          route: '/inventory/products'
         },
         { label: 'Categorías', icon: 'category', route: '/inventory/categories' },
         { label: 'Stock', icon: 'storage', route: '/inventory/stock' },
@@ -327,43 +308,5 @@ export class SidebarComponent {
     this.sidebarService.toggle();
   }
 
-  isMenuItemActive(menuId: string): boolean {
-    return this.activeMenuItem() === menuId;
-  }
 
-  loadUsers() {
-    this.contentService.setContent({
-      component: UsersComponent,
-      title: 'Gestión de Usuarios',
-      icon: 'people',
-      menuId: 'admin-users'
-    });
-  }
-
-  loadRoles() {
-    this.contentService.setContent({
-      component: RolesComponent,
-      title: 'Gestión de Roles',
-      icon: 'admin_panel_settings',
-      menuId: 'admin-roles'
-    });
-  }
-
-  loadAuthManagement() {
-    this.contentService.setContent({
-      component: AuthManagementComponent,
-      title: 'Administración de Usuarios y Roles',
-      icon: 'admin_panel_settings',
-      menuId: 'admin-management'
-    });
-  }
-
-  loadProducts() {
-    this.contentService.setContent({
-      component: ProductsComponent,
-      title: 'Gestión de Productos',
-      icon: 'inventory',
-      menuId: 'inventory-products'
-    });
-  }
 }

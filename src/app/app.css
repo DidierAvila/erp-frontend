@@ -2,6 +2,7 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  overflow: hidden;
 }
 
 .toolbar {
@@ -11,6 +12,8 @@
   right: 0;
   z-index: 1000;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  height: 64px;
+  flex-shrink: 0;
 }
 
 .toolbar-spacer {
@@ -31,23 +34,23 @@
   display: flex;
   margin-top: 64px; /* Height of toolbar */
   width: 100%;
-  min-height: calc(100vh - 64px);
+  height: calc(100vh - 64px);
+  overflow: hidden;
   position: relative;
 }
 
 .main-content {
   flex: 1;
-  margin-left: 280px; /* Width of expanded sidebar */
   transition: margin-left 0.3s ease;
-  min-height: calc(100vh - 64px);
+  height: 100%;
+  overflow-y: auto;
   overflow-x: hidden;
-  width: calc(100% - 280px);
+  position: relative;
 }
 
 /* Adjust content margin when sidebar is collapsed */
 .content-with-sidebar.sidebar-collapsed .main-content {
   margin-left: 60px; /* Width of collapsed sidebar */
-  width: calc(100% - 60px);
 }
 
 /* Reset global para evitar espacios no deseados */
@@ -59,6 +62,7 @@
 .main-content > * {
   width: 100%;
   max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* Estilos para evitar que el contenido se superponga con el sidebar */
@@ -68,6 +72,8 @@ app-products {
   display: block;
   width: 100%;
   max-width: 100%;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 /* Asegurar que el router-outlet ocupe todo el espacio disponible */

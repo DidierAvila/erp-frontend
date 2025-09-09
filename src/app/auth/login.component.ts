@@ -8,6 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../core/services/auth.service';
+import { ContentService } from '../core/services/content.service';
 
 @Component({
   selector: 'app-login',
@@ -130,6 +131,7 @@ import { AuthService } from '../core/services/auth.service';
 export class LoginComponent {
   private authService = inject(AuthService);
   private router = inject(Router);
+  private contentService = inject(ContentService);
 
   email = '';
   password = '';
@@ -149,6 +151,7 @@ export class LoginComponent {
     this.authService.login({ email: this.email, password: this.password }).subscribe({
       next: () => {
         this.loading = false;
+        this.contentService.clearContent();
         this.router.navigate(['/dashboard']);
       },
       error: (error) => {

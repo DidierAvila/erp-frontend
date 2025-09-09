@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ViewContainerRef, ComponentRef, effect } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -25,11 +25,11 @@ import { AuthService, ContentService } from '../../core/services';
   template: `
     <div class="dashboard-container">
       <!-- Header del Dashboard -->
-        <div class="dashboard-header">
-          <div class="header-info">
-            <h1>Dashboard Ejecutivo</h1>
-            <p>{{ getCurrentDateTime() }} | Usuario: {{ (authService.currentUser$ | async)?.name || 'Admin' }}</p>
-          </div>
+      <div class="dashboard-header">
+        <div class="header-info">
+          <h1>Dashboard Ejecutivo</h1>
+          <p>{{ getCurrentDateTime() }} | Usuario: {{ (authService.currentUser$ | async)?.name || 'Admin' }}</p>
+        </div>
           <mat-chip-set>
             <mat-chip>{{ getDaysToEndOfMonth() }} días restantes del mes</mat-chip>
             <mat-chip color="primary" selected>Q4 2025</mat-chip>
@@ -260,14 +260,16 @@ import { AuthService, ContentService } from '../../core/services';
             </div>
           </mat-card-content>
         </mat-card>
-      </div>
+    </div>
   `,
   styles: [`
     .dashboard-container {
-      padding: 20px;
+      padding: 16px 24px;
       background-color: #f8fafc;
-      min-height: calc(100vh - 64px);
+      width: 100%;
+      height: 100%;
       box-sizing: border-box;
+      overflow-y: auto;
     }
 
     .dashboard-header {
@@ -275,10 +277,47 @@ import { AuthService, ContentService } from '../../core/services';
       justify-content: space-between;
       align-items: center;
       margin-bottom: 32px;
-      padding: 20px;
+      padding: 24px;
       background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
       border-radius: 16px;
       color: white;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .dynamic-content-wrapper {
+      width: 100%;
+      height: 100%;
+    }
+
+    .dynamic-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 24px;
+      padding: 16px 0;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .dynamic-header .header-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .dynamic-header .page-icon {
+      font-size: 28px;
+      width: 28px;
+      height: 28px;
+    }
+
+    .dynamic-header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 500;
+    }
+
+    .dynamic-content {
+      width: 100%;
     }
 
     .header-info h1 {
@@ -295,9 +334,11 @@ import { AuthService, ContentService } from '../../core/services';
 
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
       margin-bottom: 32px;
+      width: 100%;
+      max-width: none;
     }
 
     .kpi-card {
@@ -674,29 +715,15 @@ import { AuthService, ContentService } from '../../core/services';
   `]
 })
 export class DashboardComponent implements OnInit {
-  @ViewChild('dynamicContent', { read: ViewContainerRef }) dynamicContent!: ViewContainerRef;
-  private currentComponentRef: ComponentRef<any> | null = null;
 
   constructor(
     private router: Router,
-    public authService: AuthService,
-    public contentService: ContentService
+    public authService: AuthService
   ) {
-    // Effect para cargar componentes dinámicamente
-    effect(() => {
-      const content = this.contentService.currentContent$();
-      if (content && this.dynamicContent) {
-        this.loadDynamicComponent(content.component);
-      } else if (this.currentComponentRef) {
-        this.currentComponentRef.destroy();
-        this.currentComponentRef = null;
-      }
-    });
   }
 
   ngOnInit(): void {
-    // Limpiar cualquier contenido dinámico para mostrar el dashboard por defecto
-    this.contentService.clearContent();
+    // Dashboard inicializado correctamente
   }
 
   getCurrentDateTime(): string {
@@ -718,11 +745,5 @@ export class DashboardComponent implements OnInit {
     this.router.navigate(['/login']);
   }
 
-  private loadDynamicComponent(component: any): void {
-    if (this.currentComponentRef) {
-      this.currentComponentRef.destroy();
-    }
-    
-    this.currentComponentRef = this.dynamicContent.createComponent(component);
-  }
+
 }

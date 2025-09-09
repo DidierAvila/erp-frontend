@@ -1,6 +1,7 @@
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { CanActivateFn } from '@angular/router';
+import { ContentService } from '../services/content.service';
 
 export const authGuard: CanActivateFn = (route, state) => {
   const router = inject(Router);
@@ -19,11 +20,13 @@ export const authGuard: CanActivateFn = (route, state) => {
 
 export const loginGuard: CanActivateFn = (route, state) => {
   const router = inject(Router);
+  const contentService = inject(ContentService);
   
   // Si ya está autenticado, redirigir al dashboard
   const token = localStorage.getItem('auth_token');
   
   if (token) {
+    contentService.clearContent();
     router.navigate(['/dashboard']);
     return false;
   }
