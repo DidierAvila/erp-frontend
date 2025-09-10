@@ -28,6 +28,16 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/roles/roles-page.component').then(c => c.RolesPageComponent),
     canActivate: [authGuard]
   },
+  {
+    path: 'permissions',
+    loadComponent: () => import('./features/auth/permissions/permissions-page.component').then(c => c.PermissionsPageComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'user-types',
+    loadComponent: () => import('./features/auth/user-types/user-types-page.component').then(c => c.UserTypesPageComponent),
+    canActivate: [authGuard]
+  },
   // Redirects simples (sin guards - los guards se aplican en las rutas de destino)
   { path: 'auth', redirectTo: '/login', pathMatch: 'full' },
   { path: 'finance', redirectTo: '/dashboard', pathMatch: 'full' },

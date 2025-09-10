@@ -69,6 +69,36 @@ export interface PermissionDto {
   description?: string;
 }
 
+export interface CreatePermissionDto {
+  name?: string;
+  description?: string;
+}
+
+export interface UpdatePermissionDto {
+  name?: string;
+  description?: string;
+}
+
+// Interfaces para tipos de usuario (preparadas para futura implementación en API)
+export interface UserTypeDto {
+  id: string;
+  name?: string;
+  description?: string;
+  isActive: boolean;
+}
+
+export interface CreateUserTypeDto {
+  name?: string;
+  description?: string;
+  isActive: boolean;
+}
+
+export interface UpdateUserTypeDto {
+  name?: string;
+  description?: string;
+  isActive?: boolean;
+}
+
 export interface UserAdditionalValueResponseDto {
   key?: string;
   value?: any;

@@ -256,6 +256,16 @@ export class SidebarComponent {
           label: 'Roles', 
           icon: 'admin_panel_settings',
           route: '/roles'
+        },
+        { 
+          label: 'Permisos', 
+          icon: 'security',
+          route: '/permissions'
+        },
+        { 
+          label: 'Tipos de Usuario', 
+          icon: 'category',
+          route: '/user-types'
         }
       ]
     },

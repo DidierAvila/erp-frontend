@@ -12,7 +12,13 @@ import {
   CreateRoleDto,
   UpdateRoleDto,
   UserAdditionalValueResponseDto,
-  UpdateUserAdditionalDataDto
+  UpdateUserAdditionalDataDto,
+  UserTypeDto,
+  CreateUserTypeDto,
+  UpdateUserTypeDto,
+  PermissionDto,
+  CreatePermissionDto,
+  UpdatePermissionDto
 } from '../models';
 
 interface LoginResponse {
@@ -24,7 +30,7 @@ interface LoginResponse {
   providedIn: 'root'
 })
 export class AuthService {
-  private baseUrl = 'https://localhost:7271';
+  private readonly baseUrl = 'https://localhost:7271';
   private currentUserSubject = new BehaviorSubject<UserDto | null>(null);
   private tokenKey = 'auth_token';
   private userKey = 'auth_user';
@@ -110,11 +116,12 @@ export class AuthService {
   }
 
   // Users endpoints
-  getUsers(): Observable<UserDto[]> {
-    return this.http.get<UserDto[]>(`${this.baseUrl}/api/auth/Users`);
+  getUsers(): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/api/auth/Users`);
   }
 
   createUser(user: CreateUserDto): Observable<UserDto> {
+    // Enviar los datos directamente como espera el backend
     return this.http.post<UserDto>(`${this.baseUrl}/api/auth/Users`, user);
   }
 
@@ -169,5 +176,47 @@ export class AuthService {
 
   deleteRole(id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/api/Roles/${id}`);
+  }
+
+  // User Types endpoints
+  getUserTypes(): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/api/UserTypes`);
+  }
+
+  createUserType(userType: CreateUserTypeDto): Observable<UserTypeDto> {
+    return this.http.post<UserTypeDto>(`${this.baseUrl}/api/UserTypes`, userType);
+  }
+
+  getUserTypeById(id: string): Observable<UserTypeDto> {
+    return this.http.get<UserTypeDto>(`${this.baseUrl}/api/UserTypes/${id}`);
+  }
+
+  updateUserType(id: string, userType: UpdateUserTypeDto): Observable<UserTypeDto> {
+    return this.http.put<UserTypeDto>(`${this.baseUrl}/api/UserTypes/${id}`, userType);
+  }
+
+  deleteUserType(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/api/UserTypes/${id}`);
+  }
+
+  // Permissions endpoints
+  getPermissions(): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/api/Permissions`);
+  }
+
+  createPermission(permission: CreatePermissionDto): Observable<PermissionDto> {
+    return this.http.post<PermissionDto>(`${this.baseUrl}/api/Permissions`, permission);
+  }
+
+  getPermissionById(id: string): Observable<PermissionDto> {
+    return this.http.get<PermissionDto>(`${this.baseUrl}/api/Permissions/${id}`);
+  }
+
+  updatePermission(id: string, permission: UpdatePermissionDto): Observable<PermissionDto> {
+    return this.http.put<PermissionDto>(`${this.baseUrl}/api/Permissions/${id}`, permission);
+  }
+
+  deletePermission(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/api/Permissions/${id}`);
   }
 }
