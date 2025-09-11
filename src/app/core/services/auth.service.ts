@@ -119,14 +119,18 @@ export class AuthService {
       const payload = JSON.parse(jsonPayload);
       console.log('JWT Payload decodificado:', payload);
       
-      // Mapear los claims de .NET Identity a nuestro modelo UserDto
+      // Mapear los claims del token a nuestro modelo UserDto
       const user: UserDto = {
-        id: payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] || '1',
-        name: payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname'] || 'Usuario',
-        email: payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'] || 'usuario@sistema.com',
-        userTypeId: payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || 'user',
+        id: payload['custom:userId'] || payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] || '1',
+        name: payload['custom:UserName'] || payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname'] || 'Usuario',
+        email: payload['custom:UserEmail'] || payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'] || 'usuario@sistema.com',
+        userTypeId: payload['custom:UserTypeId'] || payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || 'user',
         // Agregar datos adicionales si existen
-        additionalData: this.extractAdditionalClaims(payload)
+        additionalData: {
+          ...this.extractAdditionalClaims(payload),
+          userTypeName: payload['custom:UserTypeName'] || 'Usuario',
+          exp: payload['exp'] || null
+        }
       };
       
       console.log('Usuario extraído del JWT:', user);

@@ -12,7 +12,15 @@
         <div class="user-section">
           <div class="user-details">
             <span class="user-name">{{ userInfo.user?.name || 'Usuario' }}</span>
-            @if (userInfo.permissions) {
+            @if (userInfo.user?.additionalData?.userTypeName) {
+              <mat-chip-set class="role-chip-set">
+                <mat-chip 
+                  [matTooltip]="'Tipo de usuario: ' + userInfo.user.additionalData.userTypeName" 
+                  class="role-chip">
+                  {{ userInfo.user.additionalData.userTypeName }}
+                </mat-chip>
+              </mat-chip-set>
+            } @else if (userInfo.permissions) {
               <mat-chip-set class="role-chip-set">
                 <mat-chip 
                   [matTooltip]="'Rol: ' + userInfo.permissions.roleName" 
@@ -31,7 +39,9 @@
               <div class="menu-user-details">
                 <strong>{{ userInfo.user?.name || 'Usuario' }}</strong>
                 <small>{{ userInfo.user?.email || '' }}</small>
-                @if (userInfo.permissions) {
+                @if (userInfo.user?.additionalData?.userTypeName) {
+                  <small class="role-text">{{ userInfo.user.additionalData.userTypeName }}</small>
+                } @else if (userInfo.permissions) {
                   <small class="role-text">{{ userInfo.permissions.roleName }}</small>
                 }
               </div>
