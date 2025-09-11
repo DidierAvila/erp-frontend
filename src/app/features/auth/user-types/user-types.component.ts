@@ -629,9 +629,9 @@ export class UserTypesComponent implements OnInit, AfterViewInit {
 
 
 
-  loadUserTypes() {
+  loadUserTypes(page: number = 1, pageSize: number = 10) {
     this.isLoading.set(true);
-    this.authService.getUserTypes().subscribe({
+    this.authService.getUserTypes(page, pageSize).subscribe({
       next: (response: any) => {
         console.log('Response from getUserTypes:', response);
         

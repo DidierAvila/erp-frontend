@@ -125,7 +125,7 @@ interface ExtendedRoleDto extends RoleDto {
         <mat-card-content>
           <div class="table-container">
             <table mat-table [dataSource]="dataSource" matSort class="roles-table">
-              
+
               <!-- Icon Column -->
               <ng-container matColumnDef="icon">
                 <th mat-header-cell *matHeaderCellDef>Icono</th>
@@ -157,14 +157,44 @@ interface ExtendedRoleDto extends RoleDto {
                 </td>
               </ng-container>
 
-              <!-- Permissions Column -->
-              <ng-container matColumnDef="permissions">
+              <!-- User Count Column -->
+              <ng-container matColumnDef="userCount">
+                <th mat-header-cell *matHeaderCellDef>Usuarios</th>
+                <td mat-cell *matCellDef="let role" class="user-count-cell">
+                  <div class="user-count-badge">
+                    <mat-icon class="count-icon">group</mat-icon>
+                    <span class="count-number">{{ role.userCount || 0 }}</span>
+                  </div>
+                </td>
+              </ng-container>
+
+              <!-- Permission Count Column -->
+              <ng-container matColumnDef="permissionCount">
                 <th mat-header-cell *matHeaderCellDef>Permisos</th>
                 <td mat-cell *matCellDef="let role" class="permissions-cell">
                   <div class="permissions-badge">
                     <mat-icon class="count-icon">security</mat-icon>
                     <span class="count-number">{{ role.permissionCount || 0 }}</span>
                   </div>
+                </td>
+              </ng-container>
+
+              <!-- Created At Column -->
+              <ng-container matColumnDef="createdAt">
+                <th mat-header-cell *matHeaderCellDef>Creado</th>
+                <td mat-cell *matCellDef="let role" class="created-at-cell">
+                  <span>{{ role.createdAt | date:'short' }}</span>
+                </td>
+              </ng-container>
+
+              <!-- Status Column -->
+              <ng-container matColumnDef="status">
+                <th mat-header-cell *matHeaderCellDef>Estado</th>
+                <td mat-cell *matCellDef="let role" class="status-cell">
+                  <span [class]="role.status ? 'user-status-badge status-active' : 'user-status-badge status-inactive'">
+                    <mat-icon>{{ role.status ? 'check_circle' : 'cancel' }}</mat-icon>
+                    {{ role.status ? 'Activo' : 'Inactivo' }}
+                  </span>
                 </td>
               </ng-container>
 
@@ -220,8 +250,10 @@ interface ExtendedRoleDto extends RoleDto {
           <!-- Paginador -->
           <mat-paginator 
             #paginator
+            [length]="totalRecords"
+            [pageIndex]="page - 1"
+            [pageSize]="pageSize"
             [pageSizeOptions]="[5, 10, 25, 50]"
-            [pageSize]="10"
             [showFirstLastButtons]="true"
             class="roles-paginator">
           </mat-paginator>
@@ -343,13 +375,16 @@ interface ExtendedRoleDto extends RoleDto {
     .table-card {
       width: 100%;
       box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-      flex: 1;
+      /* flex: 1; */
       display: flex;
       flex-direction: column;
+      margin-bottom: 16px;
+      min-height: unset;
+      max-height: unset;
     }
 
     .table-card .mat-mdc-card-content {
-      flex: 1;
+      /* flex: 1; */
       display: flex;
       flex-direction: column;
       padding: 0 !important;
@@ -357,8 +392,10 @@ interface ExtendedRoleDto extends RoleDto {
 
     .table-container {
       width: 100%;
-      flex: 1;
-      overflow: auto;
+      /* flex: 1; */
+      overflow-x: auto;
+      min-height: unset;
+      max-height: 500px;
     }
 
     .roles-table {
@@ -382,6 +419,10 @@ interface ExtendedRoleDto extends RoleDto {
 
     .roles-paginator {
       border-top: 1px solid #e0e0e0;
+      margin-top: 0;
+      background: #fff;
+      position: relative;
+      z-index: 2;
     }
 
     .icon-cell {
@@ -524,6 +565,32 @@ interface ExtendedRoleDto extends RoleDto {
       font-size: 16px;
     }
 
+    .user-status-badge {
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .user-status-badge mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+
+    .status-active {
+      background-color: #e8f5e8;
+      color: #2e7d32;
+    }
+
+    .status-inactive {
+      background-color: #ffebee;
+      color: #c62828;
+    }
+
 
 
     @media (max-width: 768px) {
@@ -546,9 +613,11 @@ export class RolesComponent implements OnInit, AfterViewInit {
   isLoading = signal(false);
   roles = signal<ExtendedRoleDto[]>([]);
   
-  displayedColumns: string[] = ['icon', 'name', 'description', 'permissions', 'actions'];
+  displayedColumns: string[] = ['icon', 'name', 'description', 'userCount', 'permissionCount', 'createdAt', 'status', 'actions'];
   dataSource = new MatTableDataSource<ExtendedRoleDto>([]);
-  
+  totalRecords = 0;
+  page = 1;
+  pageSize = 10;
   searchTerm = '';
   statusFilter = '';
 
@@ -564,7 +633,11 @@ export class RolesComponent implements OnInit, AfterViewInit {
 
   ngAfterViewInit() {
     if (this.paginator) {
-      this.dataSource.paginator = this.paginator;
+      this.paginator.page.subscribe((event) => {
+        this.page = event.pageIndex + 1;
+        this.pageSize = event.pageSize;
+        this.loadRoles();
+      });
     }
     if (this.sort) {
       this.dataSource.sort = this.sort;
@@ -573,11 +646,8 @@ export class RolesComponent implements OnInit, AfterViewInit {
 
   loadRoles(): void {
     this.isLoading.set(true);
-    
-    this.authService.getRoles().subscribe({
+    this.authService.getRoles(this.page, this.pageSize).subscribe({
       next: (response: any) => {
-        console.log('Response from getRoles:', response);
-        
         // El backend devuelve un objeto con paginación, los datos están en response.data
         if (response && response.data && Array.isArray(response.data)) {
           const extended: ExtendedRoleDto[] = response.data.map((role: any) => ({
@@ -585,23 +655,22 @@ export class RolesComponent implements OnInit, AfterViewInit {
             name: role.name,
             description: role.description,
             isActive: role.status, // Mapear status a isActive
+            status: role.status,
             isSelected: false,
             permissionCount: role.permissionCount || 0,
+            userCount: role.userCount || 0,
             permissions: [], // Por ahora vacío, se puede cargar más adelante
             createdAt: role.createdAt
           }));
-          
           this.roles.set(extended);
           this.dataSource.data = extended;
+          this.totalRecords = response.totalRecords || 0;
         } else {
-          console.error('Response structure is not valid:', response);
           this.snackBar.open('Error: La respuesta del servidor no es válida', 'Cerrar', { duration: 3000 });
         }
-        
         this.isLoading.set(false);
       },
       error: (error) => {
-        console.error('Error loading roles:', error);
         this.snackBar.open('Error al cargar roles', 'Cerrar', { duration: 3000 });
         this.isLoading.set(false);
       }
@@ -652,28 +721,27 @@ export class RolesComponent implements OnInit, AfterViewInit {
   }
 
   editRole(role: ExtendedRoleDto): void {
-    const dialogRef = this.dialog.open(EditRoleDialogComponent, {
-      width: '600px',
-      data: { role }
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        this.updateRole(role.id, result);
-      }
+    this.authService.getRoleById(role.id).subscribe((fullRole) => {
+      const dialogRef = this.dialog.open(EditRoleDialogComponent, {
+        data: { role: fullRole },
+        width: '500px'
+      });
+      dialogRef.afterClosed().subscribe(result => {
+        if (result) {
+          // Aquí puedes llamar a updateRole con el resultado
+          this.authService.updateRole(role.id, result).subscribe(() => this.loadRoles());
+        }
+      });
     });
   }
 
   viewRole(role: ExtendedRoleDto): void {
-    const dialogRef = this.dialog.open(ViewRoleDialogComponent, {
-      width: '600px',
-      data: { role }
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      if (result?.action === 'edit') {
-        this.editRole(result.role);
-      }
+    this.authService.getRoleById(role.id).subscribe((fullRole) => {
+      const dialogRef = this.dialog.open(ViewRoleDialogComponent, {
+        data: { role: fullRole },
+        width: '500px'
+      });
+      dialogRef.afterClosed().subscribe();
     });
   }
 
@@ -828,6 +896,7 @@ export class RolesComponent implements OnInit, AfterViewInit {
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
+    MatSelectModule,
     ReactiveFormsModule
   ],
   template: `
@@ -841,16 +910,29 @@ export class RolesComponent implements OnInit, AfterViewInit {
 
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Descripción</mat-label>
-          <textarea matInput formControlName="description" 
-                   placeholder="Descripción del rol" rows="3"></textarea>
+          <textarea matInput formControlName="description" placeholder="Descripción del rol" rows="3"></textarea>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Estado</mat-label>
+          <mat-select formControlName="status">
+            <mat-option [value]="true">Activo</mat-option>
+            <mat-option [value]="false">Inactivo</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Permisos</mat-label>
+          <input matInput placeholder="Filtrar permisos..." (input)="onPermissionFilterInput($event)" />
+          <mat-select formControlName="permissionIds" multiple>
+            <mat-option *ngFor="let perm of filteredPermissions" [value]="perm.id">{{ perm.name }}</mat-option>
+          </mat-select>
         </mat-form-field>
       </form>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button (click)="onCancel()">Cancelar</button>
-      <button mat-raised-button color="primary" 
-              [disabled]="!roleForm.valid"
-              (click)="onSave()">
+      <button mat-raised-button color="primary" [disabled]="!roleForm.valid" (click)="onSave()">
         Crear Rol
       </button>
     </mat-dialog-actions>
@@ -875,11 +957,32 @@ export class RolesComponent implements OnInit, AfterViewInit {
 export class CreateRoleDialogComponent {
   private fb = inject(FormBuilder);
   private dialogRef = inject(MatDialogRef<CreateRoleDialogComponent>);
+  private authService = inject(AuthService);
+
+  permissionsList: { id: string; name: string }[] = [];
+  filteredPermissions: { id: string; name: string }[] = [];
+  permissionFilter: string = '';
 
   roleForm: FormGroup = this.fb.group({
     name: ['', [Validators.required, Validators.minLength(3)]],
-    description: ['', [Validators.required, Validators.minLength(5)]]
+    description: ['', [Validators.required, Validators.minLength(5)]],
+    status: [true, Validators.required],
+    permissionIds: [[]]
   });
+
+  constructor() {
+    this.authService.getAllPermissionsDropdown().subscribe((perms) => {
+      // Mapear para asegurar que name nunca sea undefined
+      this.permissionsList = perms.map(p => ({ id: p.id, name: p.name || '' }));
+      this.filteredPermissions = this.permissionsList;
+    });
+  }
+
+  onPermissionFilterInput(event: Event) {
+    const value = (event.target as HTMLInputElement).value.toLowerCase();
+    this.permissionFilter = value;
+    this.filteredPermissions = this.permissionsList.filter(p => p.name.toLowerCase().includes(value));
+  }
 
   onCancel() {
     this.dialogRef.close();
@@ -902,6 +1005,7 @@ export class CreateRoleDialogComponent {
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
+    MatSelectModule,
     ReactiveFormsModule
   ],
   template: `
@@ -915,16 +1019,29 @@ export class CreateRoleDialogComponent {
 
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Descripción</mat-label>
-          <textarea matInput formControlName="description" 
-                   placeholder="Descripción del rol" rows="3"></textarea>
+          <textarea matInput formControlName="description" placeholder="Descripción del rol" rows="3"></textarea>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Estado</mat-label>
+          <mat-select formControlName="status">
+            <mat-option [value]="true">Activo</mat-option>
+            <mat-option [value]="false">Inactivo</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Permisos</mat-label>
+          <input matInput placeholder="Filtrar permisos..." (input)="onPermissionFilterInput($event)" [value]="permissionFilter" />
+          <mat-select formControlName="permissionIds" multiple>
+            <mat-option *ngFor="let perm of filteredPermissions" [value]="perm.id">{{ perm.name }}</mat-option>
+          </mat-select>
         </mat-form-field>
       </form>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button (click)="onCancel()">Cancelar</button>
-      <button mat-raised-button color="primary" 
-              [disabled]="!roleForm.valid"
-              (click)="onSave()">
+      <button mat-raised-button color="primary" [disabled]="!roleForm.valid" (click)="onSave()">
         Actualizar Rol
       </button>
     </mat-dialog-actions>
@@ -950,16 +1067,32 @@ export class EditRoleDialogComponent {
   private fb = inject(FormBuilder);
   private dialogRef = inject(MatDialogRef<EditRoleDialogComponent>);
   private data = inject(MAT_DIALOG_DATA) as { role: ExtendedRoleDto };
-  
+  private authService = inject(AuthService);
+
+  permissionsList: { id: string; name: string }[] = [];
+  filteredPermissions: { id: string; name: string }[] = [];
+  permissionFilter: string = '';
+
   roleForm: FormGroup;
 
   constructor() {
     const role = this.data?.role;
-    
     this.roleForm = this.fb.group({
       name: [role?.name || '', [Validators.required, Validators.minLength(3)]],
-      description: [role?.description || '', [Validators.required, Validators.minLength(5)]]
+      description: [role?.description || '', [Validators.required, Validators.minLength(5)]],
+      status: [role?.status ?? true, Validators.required],
+      permissionIds: [role?.permissions?.map(p => p.id) || []]
     });
+    this.authService.getAllPermissionsDropdown().subscribe((perms) => {
+      this.permissionsList = perms.map(p => ({ id: p.id, name: p.name || '' }));
+      this.filteredPermissions = this.permissionsList;
+    });
+  }
+
+  onPermissionFilterInput(event: Event) {
+    const value = (event.target as HTMLInputElement).value.toLowerCase();
+    this.permissionFilter = value;
+    this.filteredPermissions = this.permissionsList.filter(p => p.name.toLowerCase().includes(value));
   }
 
   onCancel() {
@@ -1006,7 +1139,16 @@ export class EditRoleDialogComponent {
 
         <div class="detail-section">
           <label>Permisos:</label>
-          <span class="detail-value">{{ role.permissionCount || 0 }} permisos asignados</span>
+          <ng-container *ngIf="role.permissions && role.permissions.length; else noPerms">
+            <mat-chip-set>
+              <mat-chip *ngFor="let perm of role.permissions" color="primary" selected>
+                {{ perm.name }}
+              </mat-chip>
+            </mat-chip-set>
+          </ng-container>
+          <ng-template #noPerms>
+            <span class="detail-value">Sin permisos asignados</span>
+          </ng-template>
         </div>
 
         <div class="detail-section">

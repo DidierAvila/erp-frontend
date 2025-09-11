@@ -256,8 +256,8 @@ export class AuthService {
   }
 
   // User Types endpoints
-  getUserTypes(): Observable<any> {
-    return this.http.get<any>(`${this.baseUrl}/api/UserTypes`);
+  getUserTypes(page: number = 1, pageSize: number = 10): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/api/auth/UserTypes?Page=${page}&PageSize=${pageSize}`);
   }
 
   createUserType(userType: CreateUserTypeDto): Observable<UserTypeDto> {
@@ -277,8 +277,13 @@ export class AuthService {
   }
 
   // Permissions endpoints
-  getPermissions(): Observable<any> {
-    return this.http.get<any>(`${this.baseUrl}/api/Permissions`);
+  getPermissions(page: number = 1, pageSize: number = 10): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/api/Permissions`, {
+      params: {
+        Page: page.toString(),
+        PageSize: pageSize.toString()
+      }
+    });
   }
 
   // Para dropdowns/select

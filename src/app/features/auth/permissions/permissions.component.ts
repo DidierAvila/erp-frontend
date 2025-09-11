@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, signal, inject, AfterViewInit } from '@angular/core';
+import { Component, OnInit, ViewChild, signal, inject, AfterViewInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
@@ -102,7 +102,7 @@ interface ExtendedPermission extends PermissionDto {
       <!-- Results Summary -->
       <div class="results-summary" *ngIf="!isLoading()">
         <span class="result-count">
-          {{ filteredPermissions().length }} de {{ permissions().length }} permisos
+          Mostrando {{ dataSource.data.length }} de {{ totalCount }} permisos
         </span>
       </div>
 
@@ -164,11 +164,10 @@ interface ExtendedPermission extends PermissionDto {
           <ng-container matColumnDef="status">
             <th mat-header-cell *matHeaderCellDef>Estado</th>
             <td mat-cell *matCellDef="let permission">
-              <mat-chip-set>
-                <mat-chip [color]="'primary'" selected>
-                  Activo
-                </mat-chip>
-              </mat-chip-set>
+              <span [class]="permission.status ? 'user-status-badge status-active' : 'user-status-badge status-inactive'">
+                <mat-icon>{{ permission.status ? 'check_circle' : 'cancel' }}</mat-icon>
+                {{ permission.status ? 'Activo' : 'Inactivo' }}
+              </span>
             </td>
           </ng-container>
 
@@ -226,8 +225,10 @@ interface ExtendedPermission extends PermissionDto {
         </table>
 
         <mat-paginator 
+          [length]="totalCount"
+          [pageIndex]="pageIndex"
+          [pageSize]="pageSize"
           [pageSizeOptions]="[5, 10, 25, 100]" 
-          [pageSize]="10"
           showFirstLastButtons
           class="permissions-paginator">
         </mat-paginator>
@@ -235,6 +236,28 @@ interface ExtendedPermission extends PermissionDto {
     </div>
   `,
   styles: [`
+    .user-status-badge {
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .user-status-badge mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+    .status-active {
+      background-color: #e8f5e8;
+      color: #2e7d32;
+    }
+    .status-inactive {
+      background-color: #ffebee;
+      color: #c62828;
+    }
     .permissions-container {
       padding: 0;
       background-color: transparent;
@@ -500,6 +523,7 @@ export class PermissionsComponent implements OnInit, AfterViewInit {
   private authService = inject(AuthService);
   private snackBar = inject(MatSnackBar);
   private dialog = inject(MatDialog);
+  private cdr = inject(ChangeDetectorRef);
 
   // Signals
   permissions = signal<ExtendedPermission[]>([]);
@@ -512,6 +536,11 @@ export class PermissionsComponent implements OnInit, AfterViewInit {
   displayedColumns: string[] = ['icon', 'name', 'description', 'category', 'status', 'actions'];
   dataSource = new MatTableDataSource<ExtendedPermission>();
 
+  // Pagination state
+  pageIndex = 0;
+  pageSize = 10;
+  totalCount = 0;
+
   // ViewChild references
   @ViewChild(MatPaginator) paginator!: MatPaginator;
   @ViewChild(MatSort) sort!: MatSort;
@@ -523,21 +552,33 @@ export class PermissionsComponent implements OnInit, AfterViewInit {
   ngAfterViewInit() {
     this.dataSource.paginator = this.paginator;
     this.dataSource.sort = this.sort;
+    if (this.paginator) {
+      this.paginator.page.subscribe((event) => {
+        this.pageIndex = event.pageIndex;
+        this.pageSize = event.pageSize;
+        this.loadPermissions();
+      });
+    }
   }
 
   async loadPermissions() {
     try {
       this.isLoading.set(true);
-      const response = await this.authService.getPermissions().toPromise();
-      
+      // Backend expects 1-based page, paginator is 0-based
+      const response = await this.authService.getPermissions(this.pageIndex + 1, this.pageSize).toPromise();
       if (response && response.data) {
         const permissionsData = response.data.map((permission: any) => ({
           ...permission,
           isSelected: false
         }));
-        
         this.permissions.set(permissionsData);
-        this.applyFilters();
+        this.dataSource.data = permissionsData;
+  this.totalCount = response.totalRecords || response.totalCount || response.total || 0;
+        if (this.paginator) {
+          this.paginator.length = this.totalCount;
+        }
+        // Forzar actualización de vista para el paginador
+        this.cdr.detectChanges();
       }
     } catch (error) {
       console.error('Error loading permissions:', error);
@@ -558,10 +599,10 @@ export class PermissionsComponent implements OnInit, AfterViewInit {
     this.applyFilters();
   }
 
+  // Filtering is now only for current page data (optional: could be removed or kept for local search)
   applyFilters() {
     let filtered = [...this.permissions()];
-
-    // Apply search filter
+    // Optionally, keep search/category filter for current page
     const searchValue = this.searchTerm().toLowerCase();
     if (searchValue) {
       filtered = filtered.filter(permission =>
@@ -569,15 +610,12 @@ export class PermissionsComponent implements OnInit, AfterViewInit {
         permission.description?.toLowerCase().includes(searchValue)
       );
     }
-
-    // Apply category filter
     const category = this.selectedCategory();
     if (category !== 'all') {
       filtered = filtered.filter(permission => 
         this.getPermissionCategory(permission.name || '').toLowerCase() === category.toLowerCase()
       );
     }
-
     this.filteredPermissions.set(filtered);
     this.dataSource.data = filtered;
   }
