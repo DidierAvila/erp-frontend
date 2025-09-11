@@ -16,6 +16,7 @@ export interface UserDto {
   userTypeId: string;
   addres?: string;
   additionalData?: { [key: string]: any };
+  roles?: RoleDto[]; // Roles asignados al usuario
   createdAt?: string;
   updatedAt?: string;
 }
@@ -29,6 +30,7 @@ export interface CreateUserDto {
   userTypeId: string;
   addres?: string;
   additionalData?: { [key: string]: any };
+  roleIds?: string[]; // IDs de roles a asignar
 }
 
 export interface UpdateUserDto {
@@ -37,6 +39,7 @@ export interface UpdateUserDto {
   userTypeId?: string;
   addres?: string;
   additionalData?: { [key: string]: any };
+  roleIds?: string[]; // IDs de roles a asignar
 }
 
 export interface ChangePasswordDto {
@@ -48,12 +51,14 @@ export interface RoleDto {
   id: string;
   name?: string;
   description?: string;
+  status?: boolean;
   permissions?: PermissionDto[];
 }
 
 export interface CreateRoleDto {
   name?: string;
   description?: string;
+  status?: boolean;
   permissionIds?: string[];
 }
 

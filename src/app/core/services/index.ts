@@ -6,3 +6,4 @@ export * from './purchases.service';
 export * from './sales.service';
 export * from './sidebar.service';
 export * from './content.service';
+export * from './permissions.service';

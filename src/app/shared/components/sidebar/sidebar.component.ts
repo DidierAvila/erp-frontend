@@ -1,4 +1,4 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
@@ -6,7 +6,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterModule } from '@angular/router';
-import { SidebarService } from '../../../core/services';
+import { SidebarService, PermissionsService } from '../../../core/services';
+import { Observable, map } from 'rxjs';
 
 interface MenuItem {
   label: string;
@@ -16,6 +17,8 @@ interface MenuItem {
   action?: () => void;
   children?: MenuItem[];
   id?: string; // Identificador único para el estilo activo
+  permission?: string; // Permiso requerido para acceder
+  module?: string; // Módulo del permiso
 }
 
 @Component({
@@ -46,7 +49,7 @@ interface MenuItem {
 
         <!-- Menu Items -->
         <mat-nav-list class="nav-list">
-          @for (item of menuItems; track item.label) {
+          @for (item of (filteredMenuItems$ | async) || []; track item.label) {
             @if (item.children && item.children.length > 0) {
               <!-- Menu con submenu -->
               <mat-expansion-panel class="menu-expansion" [hideToggle]="!isExpanded()">
@@ -224,11 +227,63 @@ interface MenuItem {
     }
   `]
 })
-export class SidebarComponent {
+export class SidebarComponent implements OnInit {
+  
+  // Menú filtrado basado en permisos
+  filteredMenuItems$!: Observable<MenuItem[]>;
   
   constructor(
-    public sidebarService: SidebarService
+    public sidebarService: SidebarService,
+    private permissionsService: PermissionsService
   ) {
+  }
+
+  ngOnInit(): void {
+    // Crear observable del menú filtrado por permisos
+    this.filteredMenuItems$ = this.permissionsService.userPermissions$.pipe(
+      map(permissions => this.filterMenuByPermissions(this.menuItems, permissions))
+    );
+  }
+
+  /**
+   * Filtrar elementos del menú basado en permisos del usuario
+   */
+  private filterMenuByPermissions(items: MenuItem[], permissions: any): MenuItem[] {
+    if (!permissions) {
+      // Si no hay permisos, solo mostrar dashboard
+      return items.filter(item => item.module === 'dashboard');
+    }
+
+    return items.filter(item => {
+      // Verificar si el usuario puede acceder al módulo
+      if (item.module && permissions.canAccess) {
+        const canAccess = permissions.canAccess[item.module as keyof typeof permissions.canAccess];
+        if (!canAccess) {
+          return false;
+        }
+      }
+
+      // Si tiene hijos, filtrar recursivamente
+      if (item.children && item.children.length > 0) {
+        const filteredChildren = this.filterMenuByPermissions(item.children, permissions);
+        if (filteredChildren.length === 0) {
+          return false; // No mostrar el item padre si no tiene hijos accesibles
+        }
+        // Crear una copia del item con los hijos filtrados
+        return Object.assign({}, item, { children: filteredChildren });
+      }
+
+      return true;
+    }).map(item => {
+      // Si tiene hijos, aplicar el filtro a los hijos
+      if (item.children && item.children.length > 0) {
+        return {
+          ...item,
+          children: this.filterMenuByPermissions(item.children, permissions)
+        };
+      }
+      return item;
+    });
   }
   
   get isExpanded() {
@@ -241,75 +296,156 @@ export class SidebarComponent {
     {
       label: 'Dashboard',
       icon: 'dashboard',
-      route: '/dashboard'
+      route: '/dashboard',
+      module: 'dashboard'
     },
     {
       label: 'Administración',
       icon: 'admin_panel_settings',
+      module: 'auth',
       children: [
         { 
           label: 'Usuarios', 
           icon: 'people',
-          route: '/users'
+          route: '/users',
+          module: 'auth'
         },
         { 
           label: 'Roles', 
           icon: 'admin_panel_settings',
-          route: '/roles'
+          route: '/roles',
+          module: 'auth'
         },
         { 
           label: 'Permisos', 
           icon: 'security',
-          route: '/permissions'
+          route: '/permissions',
+          module: 'auth'
         },
         { 
           label: 'Tipos de Usuario', 
           icon: 'category',
-          route: '/user-types'
+          route: '/user-types',
+          module: 'auth'
         }
       ]
     },
     {
       label: 'Inventario',
       icon: 'inventory_2',
+      module: 'inventory',
       children: [
         { 
           label: 'Productos', 
           icon: 'shopping_bag', 
-          route: '/inventory/products'
+          route: '/inventory/products',
+          module: 'inventory'
         },
-        { label: 'Categorías', icon: 'category', route: '/inventory/categories' },
-        { label: 'Stock', icon: 'storage', route: '/inventory/stock' },
-        { label: 'Movimientos', icon: 'swap_horiz', route: '/inventory/movements' }
+        { 
+          label: 'Categorías', 
+          icon: 'category', 
+          route: '/inventory/categories',
+          module: 'inventory'
+        },
+        { 
+          label: 'Stock', 
+          icon: 'storage', 
+          route: '/inventory/stock',
+          module: 'inventory'
+        },
+        { 
+          label: 'Movimientos', 
+          icon: 'swap_horiz', 
+          route: '/inventory/movements',
+          module: 'inventory'
+        }
       ]
     },
     {
       label: 'Compras',
       icon: 'shopping_cart',
+      module: 'purchases',
       children: [
-        { label: 'Órdenes de Compra', icon: 'receipt', route: '/purchases/orders' },
-        { label: 'Proveedores', icon: 'business', route: '/purchases/suppliers' },
-        { label: 'Facturas', icon: 'description', route: '/purchases/invoices' }
+        { 
+          label: 'Órdenes de Compra', 
+          icon: 'receipt', 
+          route: '/purchases/orders',
+          module: 'purchases'
+        },
+        { 
+          label: 'Proveedores', 
+          icon: 'business', 
+          route: '/purchases/suppliers',
+          module: 'purchases'
+        },
+        { 
+          label: 'Facturas', 
+          icon: 'description', 
+          route: '/purchases/invoices',
+          module: 'purchases'
+        }
       ]
     },
     {
       label: 'Ventas',
       icon: 'point_of_sale',
+      module: 'sales',
       children: [
-        { label: 'Órdenes de Venta', icon: 'sell', route: '/sales/orders' },
-        { label: 'Clientes', icon: 'people_outline', route: '/sales/customers' },
-        { label: 'Facturas', icon: 'receipt_long', route: '/sales/invoices' },
-        { label: 'Reportes', icon: 'analytics', route: '/sales/reports' }
+        { 
+          label: 'Órdenes de Venta', 
+          icon: 'sell', 
+          route: '/sales/orders',
+          module: 'sales'
+        },
+        { 
+          label: 'Clientes', 
+          icon: 'people_outline', 
+          route: '/sales/customers',
+          module: 'sales'
+        },
+        { 
+          label: 'Facturas', 
+          icon: 'receipt_long', 
+          route: '/sales/invoices',
+          module: 'sales'
+        },
+        { 
+          label: 'Reportes', 
+          icon: 'analytics', 
+          route: '/sales/reports',
+          module: 'sales'
+        }
       ]
     },
     {
       label: 'Finanzas',
       icon: 'account_balance',
+      module: 'finance',
       children: [
-        { label: 'Cuentas', icon: 'account_balance_wallet', route: '/finance/accounts' },
-        { label: 'Transacciones', icon: 'payment', route: '/finance/transactions' },
-        { label: 'Reportes', icon: 'assessment', route: '/finance/reports' },
-        { label: 'Presupuesto', icon: 'savings', route: '/finance/budget' }
+        { 
+          label: 'Cuentas', 
+          icon: 'account_balance_wallet', 
+          route: '/finance/accounts',
+          module: 'finance'
+        },
+        { 
+          label: 'Transacciones', 
+          icon: 'payment', 
+          route: '/finance/transactions',
+          module: 'finance'
+        },
+        { 
+          label: 'Reportes', 
+          icon: 'assessment', 
+          route: '/finance/reports',
+          module: 'finance'
+        },
+        { 
+          label: 'Presupuesto', 
+          icon: 'savings', 
+          route: '/finance/budget',
+          module: 'finance'
+        }
       ]
     }
   ];

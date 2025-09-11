@@ -30,6 +30,66 @@
   font-size: 14px;
 }
 
+.user-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.user-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: white;
+}
+
+.role-chip-set {
+  --mdc-chip-container-height: 20px;
+}
+
+.role-chip {
+  --mdc-chip-label-text-size: 11px;
+  --mdc-chip-with-icon-label-text-size: 11px;
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  height: 20px !important;
+  font-size: 11px !important;
+}
+
+.menu-user-info {
+  cursor: default !important;
+  opacity: 1 !important;
+}
+
+.menu-user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+.menu-user-details strong {
+  font-size: 14px;
+  color: #333;
+}
+
+.menu-user-details small {
+  font-size: 12px;
+  color: #666;
+}
+
+.role-text {
+  color: #1976d2 !important;
+  font-weight: 500 !important;
+}
+
 .content-with-sidebar {
   display: flex;
   margin-top: 64px; /* Height of toolbar */

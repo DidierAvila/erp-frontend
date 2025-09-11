@@ -18,8 +18,17 @@ import { MatBadgeModule } from '@angular/material/badge';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { AuthService } from '../../../core/services';
 import { UserDto, CreateUserDto, UpdateUserDto } from '../../../core/models';
+
+// Interfaz para roles del usuario
+interface UserRole {
+  id: string;
+  name: string;
+  description?: string;
+  status?: boolean;
+}
 
 // Interfaz extendida para la tabla que coincide con la respuesta del backend
 interface ExtendedUserDto {
@@ -30,6 +39,7 @@ interface ExtendedUserDto {
   address?: string;
   image?: string;
   roleName?: string;
+  firstRoleName?: string; // Primer rol del usuario
   userTypeName?: string;
   userTypeId?: string; // Mantener para compatibilidad con el código existente
   createdAt?: string;
@@ -37,6 +47,7 @@ interface ExtendedUserDto {
   isActive?: boolean;
   isSelected?: boolean;
   additionalData?: any;
+  roles?: UserRole[];  // Array de roles del usuario
 }
 
 @Component({
@@ -60,7 +71,9 @@ interface ExtendedUserDto {
     MatTooltipModule,
     MatBadgeModule,
     MatMenuModule,
-    MatDividerModule
+    MatDividerModule,
+    MatCheckboxModule,
+    MatChipsModule
   ],
   template: `
     <div class="users-container">
@@ -124,7 +137,7 @@ interface ExtendedUserDto {
                     <ng-container matColumnDef="id">
                       <th mat-header-cell *matHeaderCellDef mat-sort-header>ID</th>
                       <td mat-cell *matCellDef="let user" class="id-cell">
-                        <span class="user-id">#{{user.id}}</span>
+                        <span class="user-id" [title]="user.id">#{{getShortId(user.id)}}</span>
                       </td>
                     </ng-container>
 
@@ -167,9 +180,9 @@ interface ExtendedUserDto {
                     <ng-container matColumnDef="userTypeId">
                       <th mat-header-cell *matHeaderCellDef mat-sort-header>Tipo</th>
                       <td mat-cell *matCellDef="let user" class="type-cell">
-                        <span [class]="getUserTypeClass(user.userTypeId)" class="user-type-badge">
-                          <mat-icon>{{getUserTypeIcon(user.userTypeId)}}</mat-icon>
-                          {{getUserTypeLabel(user.userTypeId)}}
+                        <span [class]="getUserTypeClass(user)" class="user-type-badge">
+                          <mat-icon>{{getUserTypeIcon(user)}}</mat-icon>
+                          {{getUserTypeLabel(user)}}
                         </span>
                       </td>
                     </ng-container>
@@ -499,9 +512,19 @@ interface ExtendedUserDto {
       color: #1976d2;
     }
 
-    .type-viewer {
+    .type-client {
       background-color: #fff3e0;
       color: #f57c00;
+    }
+
+    .type-contractor {
+      background-color: #fce4ec;
+      color: #ad1457;
+    }
+
+    .type-default {
+      background-color: #f5f5f5;
+      color: #666666;
     }
 
     .status-active {
@@ -797,24 +820,19 @@ export class UsersComponent implements OnInit {
 
   loadUserTypes(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.authService.getUserTypes().subscribe({
+      console.log('Cargando tipos de usuario desde API...');
+      this.authService.getAllUserTypes().subscribe({
         next: (response) => {
-          console.log('Tipos de usuario cargados:', response);
+          console.log('Tipos de usuario cargados desde dropdown API:', response);
           
-          if (Array.isArray(response)) {
-            this.userTypes = response;
-          } else if (response.data && Array.isArray(response.data)) {
-            this.userTypes = response.data;
-          } else {
-            console.warn('Formato de respuesta de tipos de usuario no reconocido:', response);
-            this.userTypes = [];
-          }
+          // La respuesta del endpoint dropdown debería ser un array directo
+          this.userTypes = Array.isArray(response) ? response : [];
           
-          console.log('User types procesados:', this.userTypes);
+          console.log('User types procesados:', this.userTypes.length + ' tipos cargados');
           resolve();
         },
         error: (error) => {
-          console.error('Error al cargar tipos de usuario:', error);
+          console.error('Error al cargar tipos de usuario desde dropdown:', error);
           this.snackBar.open('Error al cargar tipos de usuario', 'Cerrar', { duration: 3000 });
           // Fallback con tipos básicos
           this.userTypes = [
@@ -823,6 +841,7 @@ export class UsersComponent implements OnInit {
             { id: 'employee', name: 'Empleado' },
             { id: 'viewer', name: 'Visualizador' }
           ];
+          console.log('Usando tipos de usuario de fallback:', this.userTypes.length + ' tipos');
           resolve(); // Resolver aún con error para continuar
         }
       });
@@ -945,12 +964,19 @@ export class UsersComponent implements OnInit {
     
     // Cargar datos completos del usuario desde el backend
     this.authService.getUserById(user.id).subscribe({
-      next: (fullUserData) => {
+      next: (fullUserData: any) => {
         console.log('Datos completos del usuario cargados:', fullUserData);
+        
+        // Mapear 'addres' a 'address' para consistencia
+        const processedData = {
+          ...fullUserData,
+          address: fullUserData.addres || fullUserData.address,
+          userTypes: this.userTypes
+        };
         
         this.dialog.open(ViewUserDialogComponent, {
           width: '700px',
-          data: { ...fullUserData, userTypes: this.userTypes }
+          data: processedData
         });
         
         this.isLoading.set(false);
@@ -1041,34 +1067,72 @@ export class UsersComponent implements OnInit {
   }
 
   // Métodos de etiquetas y estilos
-  getUserTypeLabel(userType: string): string {
-    const labels: { [key: string]: string } = {
-      'admin': 'Administrador',
-      'manager': 'Gerente',
-      'employee': 'Empleado',
-      'viewer': 'Visualizador'
-    };
-    return labels[userType] || userType;
+  getUserTypeLabel(user: ExtendedUserDto | string): string {
+    // Si se pasa un objeto usuario y tiene userTypeName, usarlo directamente
+    if (typeof user === 'object' && user.userTypeName) {
+      return user.userTypeName;
+    }
+    
+    // Si se pasa solo el ID, buscar en el array de tipos
+    const userTypeId = typeof user === 'string' ? user : user.userTypeId;
+    const userType = this.userTypes.find(type => type.id === userTypeId);
+    return userType ? userType.name : (userTypeId || 'Sin tipo');
   }
 
-  getUserTypeClass(userType: string): string {
+  getUserTypeClass(user: ExtendedUserDto | string): string {
+    // Si se pasa un objeto usuario y tiene userTypeName, usarlo directamente
+    let typeName = '';
+    if (typeof user === 'object' && user.userTypeName) {
+      typeName = user.userTypeName;
+    } else {
+      // Si se pasa solo el ID, buscar en el array de tipos
+      const userTypeId = typeof user === 'string' ? user : user.userTypeId;
+      const userType = this.userTypes.find(type => type.id === userTypeId);
+      typeName = userType ? userType.name : '';
+    }
+    
+    if (!typeName) return 'type-default';
+    
+    // Mapear por nombre del tipo a las clases CSS
     const classes: { [key: string]: string } = {
-      'admin': 'type-admin',
-      'manager': 'type-manager',
-      'employee': 'type-employee',
-      'viewer': 'type-viewer'
+      'Administrador': 'type-admin',
+      'Gerente': 'type-manager',
+      'Empleado': 'type-employee',
+      'Cliente': 'type-client',
+      'Contratista': 'type-contractor'
     };
-    return classes[userType] || 'type-default';
+    return classes[typeName] || 'type-default';
   }
 
-  getUserTypeIcon(userType: string): string {
+  getUserTypeIcon(user: ExtendedUserDto | string): string {
+    // Si se pasa un objeto usuario y tiene userTypeName, usarlo directamente
+    let typeName = '';
+    if (typeof user === 'object' && user.userTypeName) {
+      typeName = user.userTypeName;
+    } else {
+      // Si se pasa solo el ID, buscar en el array de tipos
+      const userTypeId = typeof user === 'string' ? user : user.userTypeId;
+      const userType = this.userTypes.find(type => type.id === userTypeId);
+      typeName = userType ? userType.name : '';
+    }
+    
+    if (!typeName) return 'person';
+    
+    // Mapear por nombre del tipo a los iconos
     const icons: { [key: string]: string } = {
-      'admin': 'admin_panel_settings',
-      'manager': 'supervisor_account',
-      'employee': 'person',
-      'viewer': 'visibility'
+      'Administrador': 'admin_panel_settings',
+      'Gerente': 'supervisor_account',
+      'Empleado': 'person',
+      'Cliente': 'person_outline',
+      'Contratista': 'engineering'
     };
-    return icons[userType] || 'person';
+    return icons[typeName] || 'person';
+  }
+
+  getShortId(id: string): string {
+    // Retorna los últimos 8 caracteres del ID
+    if (!id) return '';
+    return id.length > 8 ? id.slice(-8) : id;
   }
 
   getUserStatus(user: ExtendedUserDto): string {
@@ -1126,7 +1190,9 @@ export class UsersComponent implements OnInit {
     MatInputModule,
     MatButtonModule,
     MatIconModule,
-    MatSelectModule
+    MatSelectModule,
+    MatCheckboxModule,
+    MatChipsModule
   ],
   template: `
     <h2 mat-dialog-title>
@@ -1219,6 +1285,23 @@ export class UsersComponent implements OnInit {
           </mat-form-field>
         </div>
       </form>
+
+      <!-- Sección de Roles -->
+      <div class="roles-section">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Roles</mat-label>
+          <mat-select [value]="selectedRoles" (selectionChange)="onRolesChange($event.value)" multiple>
+            <mat-option *ngFor="let role of (availableRoles || [])" [value]="role.id">
+              {{role.name}}
+            </mat-option>
+          </mat-select>
+          <mat-icon matSuffix>admin_panel_settings</mat-icon>
+          <mat-hint *ngIf="loadingRoles">Cargando roles disponibles...</mat-hint>
+          <mat-hint *ngIf="!loadingRoles && selectedRoles.length > 0">
+            {{selectedRoles.length}} rol(es) seleccionado(s)
+          </mat-hint>
+        </mat-form-field>
+      </div>
 
       <!-- Sección de Campos Adicionales -->
       <div class="additional-fields-section">
@@ -1329,12 +1412,91 @@ export class UsersComponent implements OnInit {
       justify-content: center;
       margin-top: 8px;
     }
+    .roles-section {
+      margin-top: 24px;
+      border-top: 1px solid #e0e0e0;
+      padding-top: 16px;
+    }
+    .roles-section .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .roles-section h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 500;
+      color: #1976d2;
+    }
+    .role-count {
+      background: #e3f2fd;
+      color: #1976d2;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .roles-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .role-item {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 12px;
+      transition: background-color 0.2s;
+    }
+    .role-item:hover {
+      background-color: #f5f5f5;
+    }
+    .role-checkbox {
+      width: 100%;
+    }
+    .role-info {
+      margin-left: 8px;
+    }
+    .role-name {
+      font-weight: 500;
+      font-size: 14px;
+      color: #333;
+    }
+    .role-description {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+    .selected-roles-summary {
+      margin-top: 16px;
+      padding: 12px;
+      background-color: #f0f8ff;
+      border-radius: 8px;
+      border-left: 4px solid #1976d2;
+    }
+    .selected-chips {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .no-roles-message, .loading-roles {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 16px;
+      color: #666;
+      font-style: italic;
+      justify-content: center;
+    }
   `]
 })
-export class CreateUserDialogComponent {
+export class CreateUserDialogComponent implements OnInit {
   private fb = inject(FormBuilder);
   private dialogRef = inject(MatDialogRef<CreateUserDialogComponent>);
   public data = inject<{userTypes: any[]}>(MAT_DIALOG_DATA);
+  private authService = inject(AuthService);
 
   userForm: FormGroup = this.fb.group({
     name: ['', [Validators.required, Validators.minLength(2)]],
@@ -1350,6 +1512,11 @@ export class CreateUserDialogComponent {
   additionalFields: { key: string; value: string; label: string }[] = [];
   showAddFieldSection = false;
 
+  // Gestión de roles
+  availableRoles: any[] = [];
+  selectedRoles: string[] = [];
+  loadingRoles = false;
+
   // Validador personalizado para confirmar contraseña
   passwordMatchValidator(group: AbstractControl): ValidationErrors | null {
     const password = group.get('password');
@@ -1364,6 +1531,44 @@ export class CreateUserDialogComponent {
     
     confirmPassword.setErrors(null);
     return null;
+  }
+
+  ngOnInit() {
+    this.loadAvailableRoles();
+  }
+
+  // Métodos para gestión de roles
+  loadAvailableRoles() {
+    console.log('Iniciando carga de roles...');
+    this.loadingRoles = true;
+    this.availableRoles = []; // Asegurar que sea array antes de la llamada
+    
+    this.authService.getAllRoles().subscribe({
+      next: (roles) => {
+        console.log('Respuesta del servidor:', roles);
+        // Asegurar que la respuesta sea un array
+        this.availableRoles = Array.isArray(roles) ? roles : [];
+        this.loadingRoles = false;
+        console.log('Roles disponibles cargados:', this.availableRoles.length + ' roles');
+      },
+      error: (error) => {
+        console.error('Error al cargar roles desde la API:', error);
+        console.log('Status:', error.status, 'Message:', error.message);
+        this.loadingRoles = false;
+        // Fallback con roles de ejemplo para poder probar
+        this.availableRoles = [
+          { id: '1', name: 'Administrador', description: 'Acceso completo al sistema' },
+          { id: '2', name: 'Usuario', description: 'Acceso básico al sistema' },
+          { id: '3', name: 'Gerente', description: 'Acceso de gestión' }
+        ];
+        console.log('Usando roles de fallback:', this.availableRoles.length + ' roles');
+      }
+    });
+  }
+
+  onRolesChange(selectedRoles: string[]) {
+    this.selectedRoles = selectedRoles || [];
+    console.log('Roles seleccionados:', this.selectedRoles);
   }
 
   // Métodos para campos adicionales
@@ -1418,8 +1623,13 @@ export class CreateUserDialogComponent {
         phone: formValue.phone || "string",
         userTypeId: formValue.userTypeId,
         addres: formValue.address || "string",
-        additionalData: additionalData
+        additionalData: additionalData,
+        roleIds: this.selectedRoles.length > 0 ? this.selectedRoles : undefined
       };
+      
+      console.log('Datos del usuario a crear:', userData);
+      console.log('UserTypeId seleccionado:', formValue.userTypeId);
+      console.log('Roles seleccionados:', this.selectedRoles);
       
       this.dialogRef.close(userData);
     }
@@ -1439,7 +1649,9 @@ export class CreateUserDialogComponent {
     MatInputModule,
     MatButtonModule,
     MatIconModule,
-    MatSelectModule
+    MatSelectModule,
+    MatCheckboxModule,
+    MatChipsModule
   ],
   template: `
     <h2 mat-dialog-title>
@@ -1504,6 +1716,37 @@ export class CreateUserDialogComponent {
           </mat-form-field>
         </div>
       </form>
+
+      <!-- Sección de Roles -->
+      <div class="roles-section">
+        <div class="section-header">
+          <h3>
+            <mat-icon>security</mat-icon>
+            Roles del Usuario
+          </h3>
+        </div>
+        
+        <div *ngIf="loadingRoles" class="loading-message">
+          <mat-icon>hourglass_empty</mat-icon>
+          Cargando roles...
+        </div>
+        
+        <div *ngIf="!loadingRoles" class="roles-selection">
+          <div *ngFor="let role of availableRoles" class="role-item">
+            <mat-checkbox 
+              [checked]="selectedRoles.includes(role.id)"
+              (change)="onRolesChange($event, role.id)">
+              <span class="role-name">{{ role.name }}</span>
+              <span *ngIf="role.description" class="role-description">{{ role.description }}</span>
+            </mat-checkbox>
+          </div>
+          
+          <div *ngIf="availableRoles.length === 0" class="no-roles-message">
+            <mat-icon>info</mat-icon>
+            No hay roles disponibles
+          </div>
+        </div>
+      </div>
 
       <!-- Sección de Campos Adicionales -->
       <div class="additional-fields-section">
@@ -1614,6 +1857,54 @@ export class CreateUserDialogComponent {
       justify-content: center;
       margin-top: 8px;
     }
+    .roles-section {
+      margin-top: 24px;
+      border-top: 1px solid #e0e0e0;
+      padding-top: 16px;
+    }
+    .roles-section .section-header h3 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 16px 0;
+      color: #1976d2;
+      font-size: 16px;
+      font-weight: 500;
+    }
+    .roles-selection {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .role-item {
+      padding: 8px 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+    }
+    .role-item:hover {
+      background-color: #f5f5f5;
+    }
+    .role-name {
+      font-weight: 500;
+      color: #333;
+    }
+    .role-description {
+      display: block;
+      font-size: 0.875rem;
+      color: #666;
+      margin-top: 4px;
+    }
+    .loading-message, .no-roles-message {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 16px;
+      text-align: center;
+      color: #666;
+      background-color: #f5f5f5;
+      border-radius: 8px;
+    }
   `]
 })
 export class EditUserDialogComponent {
@@ -1633,7 +1924,16 @@ export class EditUserDialogComponent {
   additionalFields: { key: string; value: string; label: string }[] = [];
   showAddFieldSection = false;
 
+  // Gestión de roles
+  private authService = inject(AuthService);
+  availableRoles: any[] = [];
+  selectedRoles: string[] = [];
+  loadingRoles = false;
+
   constructor() {
+    // Cargar información completa del usuario
+    this.loadCompleteUserData();
+
     // Cargar campos adicionales existentes si los hay
     if (this.data.additionalData && typeof this.data.additionalData === 'object') {
       Object.entries(this.data.additionalData).forEach(([key, value]) => {
@@ -1709,17 +2009,89 @@ export class EditUserDialogComponent {
       
       // Crear el objeto en el formato exacto que espera el backend
       const userData = {
-        id: this.data.id, // Incluir el ID para la actualización
         email: formValue.email,
         name: formValue.name,
         image: this.data.image || "string",
         phone: formValue.phone || "string",
         userTypeId: formValue.userTypeId,
         addres: formValue.address || "string",
-        additionalData: additionalData
+        additionalData: additionalData,
+        roleIds: this.selectedRoles // Incluir roles seleccionados
       };
       
       this.dialogRef.close(userData);
+    }
+  }
+
+  // Cargar información completa del usuario
+  loadCompleteUserData() {
+    if (this.data.id) {
+      this.authService.getUserById(this.data.id).subscribe({
+        next: (response) => {
+          // Actualizar el formulario con los datos completos
+          this.userForm.patchValue({
+            name: response.name,
+            email: response.email,
+            phone: response.phone,
+            address: response.addres, // Nota: el backend usa 'addres'
+            userTypeId: response.userTypeId
+          });
+
+          // Cargar roles del usuario
+          if (response.roles && response.roles.length > 0) {
+            this.selectedRoles = response.roles.map(role => role.id);
+          }
+
+          // Cargar campos adicionales actualizados
+          this.additionalFields = [];
+          if (response.additionalData && typeof response.additionalData === 'object') {
+            Object.entries(response.additionalData).forEach(([key, value]) => {
+              if (key !== 'additionalProp1' && key !== 'additionalProp2' && key !== 'additionalProp3') {
+                this.additionalFields.push({
+                  key: key,
+                  value: value as string,
+                  label: key.charAt(0).toUpperCase() + key.slice(1)
+                });
+              }
+            });
+            if (this.additionalFields.length > 0) {
+              this.showAddFieldSection = true;
+            }
+          }
+        },
+        error: (error) => {
+          console.error('Error loading complete user data:', error);
+        }
+      });
+    }
+
+    // Cargar roles disponibles
+    this.loadAvailableRoles();
+  }
+
+  // Cargar roles disponibles
+  loadAvailableRoles() {
+    this.loadingRoles = true;
+    this.authService.getAllRoles().subscribe({
+      next: (response) => {
+        this.availableRoles = response || [];
+        this.loadingRoles = false;
+      },
+      error: (error) => {
+        console.error('Error loading roles:', error);
+        this.loadingRoles = false;
+      }
+    });
+  }
+
+  // Manejar cambios en la selección de roles
+  onRolesChange(event: any, roleId: string) {
+    if (event.checked) {
+      if (!this.selectedRoles.includes(roleId)) {
+        this.selectedRoles.push(roleId);
+      }
+    } else {
+      this.selectedRoles = this.selectedRoles.filter(id => id !== roleId);
     }
   }
 }
@@ -1765,7 +2137,7 @@ export class EditUserDialogComponent {
           <mat-chip-set>
             <mat-chip [class]="getUserTypeClass(data.userTypeId || '')">
               <mat-icon matChipAvatar>{{getUserTypeIcon(data.userTypeId || '')}}</mat-icon>
-              {{getUserTypeLabel(data.userTypeId || '')}}
+              {{getUserTypeLabel(data.userTypeName || data.userTypeId || '')}}
             </mat-chip>
           </mat-chip-set>
         </div>
@@ -1783,6 +2155,23 @@ export class EditUserDialogComponent {
         <div class="detail-row" *ngIf="data.createdAt">
           <strong>Fecha de Registro:</strong>
           <span>{{formatDate(data.createdAt)}}</span>
+        </div>
+
+        <!-- Roles del Usuario -->
+        <div class="roles-section" *ngIf="data.roles && data.roles.length > 0">
+          <h4 class="section-title">
+            <mat-icon>admin_panel_settings</mat-icon>
+            Roles Asignados
+          </h4>
+          <div class="roles-grid">
+            <mat-chip-set>
+              <mat-chip *ngFor="let role of data.roles" class="role-chip">
+                <mat-icon matChipAvatar>{{getRoleIcon(role)}}</mat-icon>
+                <span class="role-name">{{role.name}}</span>
+                <span class="role-description" *ngIf="role.description">- {{role.description}}</span>
+              </mat-chip>
+            </mat-chip-set>
+          </div>
         </div>
 
         <!-- Campos Adicionales -->
@@ -1884,6 +2273,29 @@ export class EditUserDialogComponent {
       color: #333;
       font-weight: 400;
     }
+    .roles-section {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid #e0e0e0;
+    }
+    .roles-grid mat-chip-set {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .role-chip {
+      background-color: #e3f2fd !important;
+      color: #1976d2 !important;
+      border: 1px solid #bbdefb;
+    }
+    .role-name {
+      font-weight: 500;
+    }
+    .role-description {
+      font-size: 0.85em;
+      opacity: 0.8;
+      margin-left: 4px;
+    }
   `]
 })
 export class ViewUserDialogComponent {
@@ -1926,44 +2338,71 @@ export class ViewUserDialogComponent {
       .replace(/\b\w/g, l => l.toUpperCase());
   }
 
-  getUserTypeLabel(userType: string): string {
+  getUserTypeLabel(userTypeNameOrId: string): string {
+    // Si ya es un nombre (no es un UUID), retornarlo directamente
+    if (userTypeNameOrId && !userTypeNameOrId.includes('-')) {
+      return userTypeNameOrId;
+    }
+    
+    // Si es un ID, buscar en los tipos disponibles
     if (this.data.userTypes && this.data.userTypes.length > 0) {
-      const matchedType = this.data.userTypes.find(type => 
-        type.id === userType || type.name?.toLowerCase() === userType.toLowerCase()
-      );
+      const matchedType = this.data.userTypes.find(type => type.id === userTypeNameOrId);
       if (matchedType) {
         return matchedType.name;
       }
     }
     
-    // Fallback para tipos básicos
-    const labels: { [key: string]: string } = {
-      'admin': 'Administrador',
-      'manager': 'Gerente', 
-      'employee': 'Empleado',
-      'viewer': 'Visualizador'
-    };
-    return labels[userType] || userType;
+    // Fallback si no se encuentra el tipo
+    return userTypeNameOrId || 'Sin tipo';
   }
 
-  getUserTypeClass(userType: string): string {
-    const classes: { [key: string]: string } = {
-      'admin': 'type-admin',
-      'manager': 'type-manager',
-      'employee': 'type-employee',
-      'viewer': 'type-viewer'
-    };
-    return classes[userType] || 'type-default';
+  getUserTypeClass(userTypeId: string): string {
+    if (this.data.userTypes && this.data.userTypes.length > 0) {
+      const matchedType = this.data.userTypes.find(type => type.id === userTypeId);
+      if (matchedType) {
+        // Mapear por nombre del tipo a las clases CSS
+        const classes: { [key: string]: string } = {
+          'Administrador': 'type-admin',
+          'Gerente': 'type-manager',
+          'Empleado': 'type-employee',
+          'Cliente': 'type-client',
+          'Contratista': 'type-contractor'
+        };
+        return classes[matchedType.name] || 'type-default';
+      }
+    }
+    return 'type-default';
   }
 
-  getUserTypeIcon(userType: string): string {
+  getUserTypeIcon(userTypeId: string): string {
+    if (this.data.userTypes && this.data.userTypes.length > 0) {
+      const matchedType = this.data.userTypes.find(type => type.id === userTypeId);
+      if (matchedType) {
+        // Mapear por nombre del tipo a los iconos
+        const icons: { [key: string]: string } = {
+          'Administrador': 'admin_panel_settings',
+          'Gerente': 'supervisor_account',
+          'Empleado': 'person',
+          'Cliente': 'person_outline',
+          'Contratista': 'engineering'
+        };
+        return icons[matchedType.name] || 'person';
+      }
+    }
+    return 'person';
+  }
+
+  getRoleIcon(role: UserRole): string {
+    // Mapear nombres de roles a iconos
     const icons: { [key: string]: string } = {
-      'admin': 'admin_panel_settings',
-      'manager': 'supervisor_account',
-      'employee': 'person',
-      'viewer': 'visibility'
+      'Administrador': 'admin_panel_settings',
+      'Usuario': 'person',
+      'Gerente': 'supervisor_account',
+      'Manager': 'supervisor_account',
+      'Editor': 'edit',
+      'Viewer': 'visibility'
     };
-    return icons[userType] || 'person';
+    return icons[role.name] || 'assignment_ind';
   }
 
   formatDate(date: Date | string): string {

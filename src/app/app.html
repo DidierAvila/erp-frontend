@@ -1,22 +1,49 @@
 <div class="app-container">
   <!-- Layout condicional basado en autenticación -->
-  @if (authService.isAuthenticated) {
+  @if (isAuthenticated$ | async) {
     <!-- Barra superior -->
     <mat-toolbar color="primary" class="toolbar">
       <span class="app-title">ERP System</span>
       
       <div class="toolbar-spacer"></div>
       
-      <span class="user-info">{{ (authService.currentUser$ | async)?.name || 'Usuario' }}</span>
-      <button mat-icon-button [matMenuTriggerFor]="menu">
-        <mat-icon>account_circle</mat-icon>
-      </button>
-      <mat-menu #menu="matMenu">
-        <button mat-menu-item (click)="logout()">
-          <mat-icon>logout</mat-icon>
-          <span>Cerrar Sesión</span>
-        </button>
-      </mat-menu>
+      <!-- Información del usuario y permisos -->
+      @if (userInfo$ | async; as userInfo) {
+        <div class="user-section">
+          <div class="user-details">
+            <span class="user-name">{{ userInfo.user?.name || 'Usuario' }}</span>
+            @if (userInfo.permissions) {
+              <mat-chip-set class="role-chip-set">
+                <mat-chip 
+                  [matTooltip]="'Rol: ' + userInfo.permissions.roleName" 
+                  class="role-chip">
+                  {{ userInfo.permissions.roleName }}
+                </mat-chip>
+              </mat-chip-set>
+            }
+          </div>
+          
+          <button mat-icon-button [matMenuTriggerFor]="menu">
+            <mat-icon>account_circle</mat-icon>
+          </button>
+          <mat-menu #menu="matMenu">
+            <div mat-menu-item disabled class="menu-user-info">
+              <div class="menu-user-details">
+                <strong>{{ userInfo.user?.name || 'Usuario' }}</strong>
+                <small>{{ userInfo.user?.email || '' }}</small>
+                @if (userInfo.permissions) {
+                  <small class="role-text">{{ userInfo.permissions.roleName }}</small>
+                }
+              </div>
+            </div>
+            <mat-divider></mat-divider>
+            <button mat-menu-item (click)="logout()">
+              <mat-icon>logout</mat-icon>
+              <span>Cerrar Sesión</span>
+            </button>
+          </mat-menu>
+        </div>
+      }
     </mat-toolbar>
 
     <!-- Content with Sidebar -->
