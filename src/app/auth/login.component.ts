@@ -81,9 +81,6 @@ import { ContentService } from '../core/services/content.service';
 
           <div class="demo-info">
             <p><small>Ingrese sus credenciales para acceder al sistema</small></p>
-            <button mat-stroked-button type="button" (click)="testLogin()" class="test-btn">
-              Prueba Login (Debug)
-            </button>
           </div>
         </mat-card-content>
       </mat-card>
@@ -137,12 +134,7 @@ import { ContentService } from '../core/services/content.service';
       color: white;
     }
     
-    .test-btn {
-      width: 100%;
-      margin-top: 8px;
-      border-color: #ff9800;
-      color: #ff9800;
-    }
+
   `]
 })
 export class LoginComponent {
@@ -176,7 +168,7 @@ export class LoginComponent {
     
     this.authService.login({ email: this.email, password: this.password }).subscribe({
       next: (response) => {
-        console.log('Login exitoso:', response);
+
         
         this.snackBar.open('¡Bienvenido al sistema!', 'Cerrar', {
           duration: 2000,
@@ -198,7 +190,7 @@ export class LoginComponent {
           this.loading = false;
           this.cdr.detectChanges();
         }, 100);
-        console.error('Error en el login:', error);
+
         
         let errorMessage = 'Error de conexión';
         
@@ -224,37 +216,5 @@ export class LoginComponent {
     });
   }
 
-  // Método de prueba para debug
-  testLogin() {
-    console.log('=== Test login iniciado ===');
-    this.loading = true;
-    this.cdr.detectChanges();
-    
-    // Simular login exitoso
-    const mockUser = {
-      id: '1',
-      name: 'Usuario Test',
-      email: 'test@test.com',
-      userTypeId: 'admin'
-    };
-    
-    const mockToken = 'test-token-123';
-    
-    // Guardar directamente en localStorage
-    localStorage.setItem('auth_token', mockToken);
-    localStorage.setItem('auth_user', JSON.stringify(mockUser));
-    
-    // Actualizar el subject
-    this.authService['currentUserSubject'].next(mockUser);
-    
-    console.log('Test login - Token y usuario guardados');
-    console.log('Test login - isAuthenticated:', this.authService.isAuthenticated);
-    
-    setTimeout(() => {
-      this.loading = false;
-      this.cdr.detectChanges();
-      console.log('Test login - Navegando al dashboard...');
-      this.router.navigate(['/dashboard'], { replaceUrl: true });
-    }, 200);
-  }
+
 }

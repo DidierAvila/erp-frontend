@@ -31,7 +31,7 @@ export class AuthInterceptor implements HttpInterceptor {
       catchError((error: HttpErrorResponse) => {
         // Si el error es 401 (No autorizado), cerrar sesión y redirigir al login
         if (error.status === 401) {
-          console.log('Token expirado o inválido, cerrando sesión...');
+  
           this.authService.logout();
           this.router.navigate(['/login']);
         }

@@ -720,7 +720,7 @@ export class DashboardComponent implements OnInit {
     private router: Router,
     public authService: AuthService
   ) {
-    console.log('DashboardComponent - Inicializado correctamente');
+
   }
 
   ngOnInit(): void {

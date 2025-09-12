@@ -633,7 +633,7 @@ export class UserTypesComponent implements OnInit, AfterViewInit {
     this.isLoading.set(true);
     this.authService.getUserTypes(page, pageSize).subscribe({
       next: (response: any) => {
-        console.log('Response from getUserTypes:', response);
+
         
         // El backend devuelve un objeto con paginación, los datos están en response.data
         if (response && response.data && Array.isArray(response.data)) {
@@ -649,13 +649,13 @@ export class UserTypesComponent implements OnInit, AfterViewInit {
           this.dataSource.data = extended;
           this.applyFilters();
         } else {
-          console.error('Response structure is not valid:', response);
+  
           this.snackBar.open('Error: La respuesta del servidor no es válida', 'Cerrar', { duration: 3000 });
         }
         this.isLoading.set(false);
       },
       error: (error) => {
-        console.error('Error loading user types:', error);
+
         this.snackBar.open('Error al cargar tipos de usuario', 'Cerrar', { duration: 3000 });
         this.isLoading.set(false);
       }
@@ -714,7 +714,7 @@ export class UserTypesComponent implements OnInit, AfterViewInit {
       this.snackBar.open('Tipo de usuario creado correctamente', 'Cerrar', { duration: 3000 });
       this.loadUserTypes();
     } catch (error) {
-      console.error('Error creating user type:', error);
+
       this.snackBar.open('Error al crear tipo de usuario', 'Cerrar', { duration: 3000 });
     } finally {
       this.isLoading.set(false);
@@ -728,7 +728,7 @@ export class UserTypesComponent implements OnInit, AfterViewInit {
       this.snackBar.open('Tipo de usuario actualizado correctamente', 'Cerrar', { duration: 3000 });
       this.loadUserTypes();
     } catch (error) {
-      console.error('Error updating user type:', error);
+
       this.snackBar.open('Error al actualizar tipo de usuario', 'Cerrar', { duration: 3000 });
     } finally {
       this.isLoading.set(false);
@@ -743,7 +743,7 @@ export class UserTypesComponent implements OnInit, AfterViewInit {
           this.snackBar.open('Tipo de usuario eliminado correctamente', 'Cerrar', { duration: 3000 });
         },
         error: (error) => {
-          console.error('Error deleting user type:', error);
+    
           this.snackBar.open('Error al eliminar tipo de usuario', 'Cerrar', { duration: 3000 });
         }
       });
@@ -837,7 +837,7 @@ export class UserTypesComponent implements OnInit, AfterViewInit {
         );
       },
       error: (error) => {
-        console.error('Error updating user type status:', error);
+  
         this.snackBar.open('Error al cambiar el estado del tipo de usuario', 'Cerrar', { duration: 3000 });
       }
     });
@@ -856,7 +856,7 @@ export class UserTypesComponent implements OnInit, AfterViewInit {
         this.snackBar.open('Tipo de usuario duplicado correctamente', 'Cerrar', { duration: 3000 });
       },
       error: (error) => {
-        console.error('Error duplicating user type:', error);
+  
         this.snackBar.open('Error al duplicar tipo de usuario', 'Cerrar', { duration: 3000 });
       }
     });

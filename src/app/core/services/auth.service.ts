@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject } from 'rxjs';
-import { tap, map, catchError } from 'rxjs/operators';
+import { tap, map, catchError, shareReplay } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { 
@@ -20,7 +20,12 @@ import {
   UpdateUserTypeDto,
   PermissionDto,
   CreatePermissionDto,
-  UpdatePermissionDto
+  UpdatePermissionDto,
+  UserMeResponse,
+  UserMeResponseLegacy,
+  MenuPermissions,
+  NavigationItem,
+  UserPermissions
 } from '../models';
 
 interface LoginResponse {
@@ -35,19 +40,34 @@ export class AuthService {
   private readonly baseUrl = environment.apiUrl;
   private readonly keyJwt = environment.keyJwt;
   private currentUserSubject = new BehaviorSubject<UserDto | null>(null);
+  private navigationSubject = new BehaviorSubject<NavigationItem[]>([]);
+  private permissionsSubject = new BehaviorSubject<UserPermissions>({});
   private tokenKey = 'auth_token';
   private userKey = 'auth_user';
+  private navigationKey = 'user_navigation';
+  private permissionsKey = 'user_permissions';
+  private currentUserWithPermissions$: Observable<UserMeResponse> | null = null;
 
   constructor(private http: HttpClient) {
     // Verificar si hay usuario guardado al inicializar
     const savedUser = localStorage.getItem(this.userKey);
+    const savedNavigation = localStorage.getItem(this.navigationKey);
+    const savedPermissions = localStorage.getItem(this.permissionsKey);
     const token = localStorage.getItem(this.tokenKey);
     
     if (savedUser && token) {
       try {
         this.currentUserSubject.next(JSON.parse(savedUser));
+        
+        if (savedNavigation) {
+          this.navigationSubject.next(JSON.parse(savedNavigation));
+        }
+        
+        if (savedPermissions) {
+          this.permissionsSubject.next(JSON.parse(savedPermissions));
+        }
       } catch (error) {
-        console.error('Error al parsear usuario guardado:', error);
+  
         // Limpiar datos corruptos
         this.logout();
       }
@@ -61,6 +81,14 @@ export class AuthService {
     return this.currentUserSubject.asObservable();
   }
 
+  get navigation$(): Observable<NavigationItem[]> {
+    return this.navigationSubject.asObservable();
+  }
+
+  get permissions$(): Observable<UserPermissions> {
+    return this.permissionsSubject.asObservable();
+  }
+
   get isAuthenticated(): boolean {
     return !!localStorage.getItem(this.tokenKey);
   }
@@ -71,7 +99,7 @@ export class AuthService {
       responseType: 'text' 
     }).pipe(
       map((tokenResponse: string) => {
-        console.log('AuthService - Token JWT recibido:', tokenResponse.substring(0, 50) + '...');
+
         
         // Decodificar el JWT para extraer la información del usuario
         const user = this.decodeJwtToken(tokenResponse);
@@ -84,12 +112,12 @@ export class AuthService {
         return loginResponse;
       }),
       tap(response => {
-        console.log('AuthService - Login exitoso, guardando datos...');
+
         // Guardar token y datos del usuario
         localStorage.setItem(this.tokenKey, response.token);
         localStorage.setItem(this.userKey, JSON.stringify(response.user));
         this.currentUserSubject.next(response.user);
-        console.log('AuthService - isAuthenticated:', this.isAuthenticated);
+
       })
     );
   }
@@ -97,7 +125,11 @@ export class AuthService {
   logout(): void {
     localStorage.removeItem(this.tokenKey);
     localStorage.removeItem(this.userKey);
+    localStorage.removeItem(this.navigationKey);
+    localStorage.removeItem(this.permissionsKey);
     this.currentUserSubject.next(null);
+    this.navigationSubject.next([]);
+    this.permissionsSubject.next({});
   }
 
   getToken(): string | null {
@@ -117,7 +149,7 @@ export class AuthService {
       );
       
       const payload = JSON.parse(jsonPayload);
-      console.log('JWT Payload decodificado:', payload);
+
       
       // Mapear los claims del token a nuestro modelo UserDto
       const user: UserDto = {
@@ -133,11 +165,11 @@ export class AuthService {
         }
       };
       
-      console.log('Usuario extraído del JWT:', user);
+
       return user;
       
     } catch (error) {
-      console.error('Error al decodificar JWT:', error);
+  
       
       // Fallback: crear usuario básico si no se puede decodificar
       return {
@@ -149,8 +181,8 @@ export class AuthService {
     }
   }
 
-  private extractAdditionalClaims(payload: any): { [key: string]: any } {
-    const additionalData: { [key: string]: any } = {};
+  private extractAdditionalClaims(payload: any): { [key: string]: string | number | boolean } {
+    const additionalData: { [key: string]: string | number | boolean } = {};
     
     // Claims estándar que ya mapeamos
     const standardClaims = [
@@ -222,7 +254,7 @@ export class AuthService {
     return this.http.put<void>(`${this.baseUrl}/api/auth/Users/${id}/change-password`, changePassword);
   }
 
-  updateUserAdditionalData(id: string, key: string, value: any): Observable<UserAdditionalValueResponseDto> {
+  updateUserAdditionalData(id: string, key: string, value: string | number | boolean): Observable<UserAdditionalValueResponseDto> {
     return this.http.put<UserAdditionalValueResponseDto>(`${this.baseUrl}/api/auth/Users/${id}/additional-data/${key}`, value);
   }
 
@@ -234,8 +266,8 @@ export class AuthService {
     return this.http.delete<boolean>(`${this.baseUrl}/api/auth/Users/${id}/additional-data/${key}`);
   }
 
-  updateAllUserAdditionalData(id: string, data: UpdateUserAdditionalDataDto): Observable<{[key: string]: any}> {
-    return this.http.put<{[key: string]: any}>(`${this.baseUrl}/api/auth/Users/${id}/additional-data`, data);
+  updateAllUserAdditionalData(id: string, data: UpdateUserAdditionalDataDto): Observable<{[key: string]: string | number | boolean}> {
+    return this.http.put<{[key: string]: string | number | boolean}>(`${this.baseUrl}/api/auth/Users/${id}/additional-data`, data);
   }
 
   // Roles endpoints
@@ -321,7 +353,7 @@ export class AuthService {
   getAllRoles(): Observable<RoleDto[]> {
     return this.http.get<RoleDto[]>(`${this.baseUrl}/api/Roles/dropdown`).pipe(
       catchError((error: any) => {
-        console.error('Error al obtener roles:', error);
+
         return of([]); // Retornar array vacío en caso de error
       })
     );
@@ -333,7 +365,7 @@ export class AuthService {
   getAllUserTypes(): Observable<UserTypeDto[]> {
     return this.http.get<UserTypeDto[]>(`${this.baseUrl}/api/auth/UserTypes/dropdown`).pipe(
       catchError((error: any) => {
-        console.error('Error al obtener tipos de usuario:', error);
+
         return of([]); // Retornar array vacío en caso de error
       })
     );
@@ -345,7 +377,7 @@ export class AuthService {
   getUserRoles(userId: string): Observable<RoleDto[]> {
     return this.http.get<RoleDto[]>(`${this.baseUrl}/api/Auth/Users/${userId}/roles`).pipe(
       catchError((error: any) => {
-        console.error(`Error al obtener roles del usuario ${userId}:`, error);
+
         return of([]); // Retornar array vacío en caso de error
       })
     );
@@ -357,7 +389,7 @@ export class AuthService {
   assignRolesToUser(userId: string, roleIds: string[]): Observable<any> {
     return this.http.post(`${this.baseUrl}/api/Auth/Users/${userId}/roles`, { roleIds }).pipe(
       catchError((error: any) => {
-        console.error(`Error al asignar roles al usuario ${userId}:`, error);
+
         throw error;
       })
     );
@@ -371,9 +403,250 @@ export class AuthService {
       body: { roleIds } 
     }).pipe(
       catchError((error: any) => {
-        console.error(`Error al remover roles del usuario ${userId}:`, error);
+
         throw error;
       })
     );
+  }
+
+  // Método para obtener información completa del usuario con permisos
+  getCurrentUserWithPermissions(): Observable<UserMeResponse> {
+    // Si ya hay una petición en curso, reutilizarla
+    if (this.currentUserWithPermissions$) {
+      return this.currentUserWithPermissions$;
+    }
+
+    // Crear nueva petición con caché
+    this.currentUserWithPermissions$ = this.http.get<UserMeResponse>(`${this.baseUrl}/api/Auth/me`).pipe(
+      tap(response => {
+  
+        
+        if (response.success && response.data) {
+          // Crear UserDto compatible con la estructura existente
+          const userData: UserDto = {
+            id: response.data.user.id,
+            name: response.data.user.name,
+            email: response.data.user.email,
+            image: response.data.user.avatar,
+            userTypeId: response.data.user.roleId,
+            roles: [{
+              id: response.data.user.roleId,
+              name: response.data.user.role
+            }] as RoleDto[]
+          };
+          
+          // Guardar datos en localStorage
+          localStorage.setItem(this.userKey, JSON.stringify(userData));
+          localStorage.setItem(this.navigationKey, JSON.stringify(response.data.navigation));
+          localStorage.setItem(this.permissionsKey, JSON.stringify(response.data.permissions));
+          
+          // Actualizar subjects
+          this.currentUserSubject.next(userData);
+          this.navigationSubject.next(response.data.navigation);
+          this.permissionsSubject.next(response.data.permissions);
+        }
+        
+        // Limpiar caché después de completar la petición
+        this.currentUserWithPermissions$ = null;
+      }),
+      catchError(error => {
+
+        // Limpiar caché en caso de error
+        this.currentUserWithPermissions$ = null;
+        
+        // Proporcionar navegación de respaldo cuando el backend no esté disponible
+        const fallbackNavigation: NavigationItem[] = [
+          {
+            id: 'dashboard',
+            label: 'Dashboard',
+            route: '/dashboard',
+            icon: 'dashboard',
+            order: 1,
+            visible: true,
+            children: []
+          },
+          {
+            id: 'auth',
+            label: 'Administración',
+            route: null,
+            icon: 'admin_panel_settings',
+            order: 2,
+            visible: true,
+            children: [
+              {
+                id: 'users',
+                label: 'Usuarios',
+                route: '/users',
+                icon: 'people',
+                order: 1,
+                visible: true,
+                children: []
+              },
+              {
+                id: 'roles',
+                label: 'Roles',
+                route: '/roles',
+                icon: 'security',
+                order: 2,
+                visible: true,
+                children: []
+              },
+              {
+                id: 'permissions',
+                label: 'Permisos',
+                route: '/permissions',
+                icon: 'lock',
+                order: 3,
+                visible: true,
+                children: []
+              },
+              {
+                id: 'user-types',
+                label: 'Tipos de Usuario',
+                route: '/user-types',
+                icon: 'group',
+                order: 4,
+                visible: true,
+                children: []
+              }
+            ]
+          },
+          {
+            id: 'finance',
+            label: 'Finanzas',
+            route: null,
+            icon: 'account_balance',
+            order: 3,
+            visible: true,
+            children: [
+              {
+                id: 'accounts',
+                label: 'Cuentas',
+                route: '/finance/accounts',
+                icon: 'account_balance_wallet',
+                order: 1,
+                visible: true,
+                children: []
+              },
+              {
+                id: 'transactions',
+                label: 'Transacciones',
+                route: '/finance/transactions',
+                icon: 'receipt',
+                order: 2,
+                visible: true,
+                children: []
+              }
+            ]
+          },
+          {
+            id: 'sales',
+            label: 'Ventas',
+            route: null,
+            icon: 'point_of_sale',
+            order: 4,
+            visible: true,
+            children: [
+              {
+                id: 'sales-orders',
+                label: 'Órdenes de Venta',
+                route: '/sales/orders',
+                icon: 'receipt_long',
+                order: 1,
+                visible: true,
+                children: []
+              },
+              {
+                id: 'sales-invoices',
+                label: 'Facturas de Venta',
+                route: '/sales/invoices',
+                icon: 'description',
+                order: 2,
+                visible: true,
+                children: []
+              }
+            ]
+          },
+          {
+            id: 'inventory',
+            label: 'Inventario',
+            route: null,
+            icon: 'inventory',
+            order: 5,
+            visible: true,
+            children: [
+              {
+                id: 'products',
+                label: 'Productos',
+                route: '/inventory/products',
+                icon: 'shopping_bag',
+                order: 1,
+                visible: true,
+                children: []
+              }
+            ]
+          }
+        ];
+        
+        // Actualizar navegación con datos de respaldo
+        localStorage.setItem(this.navigationKey, JSON.stringify(fallbackNavigation));
+        this.navigationSubject.next(fallbackNavigation);
+        
+        return of({
+          success: false,
+          data: {
+            user: {
+              id: '',
+              name: '',
+              email: '',
+              role: '',
+              roleId: '',
+              avatar: ''
+            },
+            navigation: fallbackNavigation,
+            permissions: {}
+          }
+        });
+      }),
+      shareReplay(1) // Compartir el resultado con múltiples suscriptores
+    );
+
+    return this.currentUserWithPermissions$;
+  }
+
+  // Método para verificar si el usuario tiene acceso a un módulo específico
+  hasModuleAccess(module: string): boolean {
+    const currentUser = this.currentUserSubject.value;
+    if (!currentUser?.menuPermissions) {
+      return false;
+    }
+
+    const permissions = currentUser.menuPermissions as any;
+    
+    // Para dashboard es un boolean directo
+    if (module === 'dashboard') {
+      return permissions.dashboard === true;
+    }
+
+    // Para otros módulos, verificar si tiene acceso
+    const modulePermissions = permissions[module];
+    return modulePermissions?.access === true;
+  }
+
+  // Método para verificar permisos específicos en un módulo
+  hasPermission(module: string, permission: string): boolean {
+    const currentUser = this.currentUserSubject.value;
+    if (!currentUser?.menuPermissions) {
+      return false;
+    }
+
+    const permissions = currentUser.menuPermissions as any;
+    const modulePermissions = permissions[module];
+    
+    if (!modulePermissions) {
+      return false;
+    }
+
+    return modulePermissions[permission] === true;
   }
 }

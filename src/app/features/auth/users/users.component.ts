@@ -20,15 +20,15 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { AuthService } from '../../../core/services';
-import { UserDto, CreateUserDto, UpdateUserDto } from '../../../core/models';
+import { UserDto, CreateUserDto, UpdateUserDto, RoleDto, UserTypeDto } from '../../../core/models';
 
-// Interfaz para roles del usuario
-interface UserRole {
-  id: string;
-  name: string;
-  description?: string;
-  status?: boolean;
-}
+// Interfaz para roles del usuario - usando RoleDto del modelo estándar
+// interface UserRole {
+//   id: string;
+//   name: string;
+//   description?: string;
+//   status?: boolean;
+// }
 
 // Interfaz extendida para la tabla que coincide con la respuesta del backend
 interface ExtendedUserDto {
@@ -46,8 +46,8 @@ interface ExtendedUserDto {
   updatedAt?: string;
   isActive?: boolean;
   isSelected?: boolean;
-  additionalData?: any;
-  roles?: UserRole[];  // Array de roles del usuario
+  additionalData?: { [key: string]: string | number | boolean };
+  roles?: RoleDto[];  // Array de roles del usuario
 }
 
 @Component({
@@ -722,7 +722,7 @@ export class UsersComponent implements OnInit {
   dataSource = new MatTableDataSource<ExtendedUserDto>([]);
 
   // Tipos de usuario
-  userTypes: any[] = [];
+  userTypes: UserTypeDto[] = [];
 
 
 
@@ -733,7 +733,7 @@ export class UsersComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    console.log('UsersComponent iniciado, cargando datos...');
+
     // Cargar primero los tipos de usuario, luego los usuarios
     this.loadUserTypes().then(() => {
       this.loadUsers();
@@ -741,11 +741,11 @@ export class UsersComponent implements OnInit {
   }
 
   ngAfterViewInit(): void {
-    console.log('ngAfterViewInit ejecutado');
+
     this.dataSource.paginator = this.paginator;
     this.dataSource.sort = this.sort;
     this.dataSource.filterPredicate = this.customFilterPredicate.bind(this);
-    console.log('DataSource configurado:', this.dataSource);
+
   }
 
 
@@ -755,12 +755,11 @@ export class UsersComponent implements OnInit {
     this.isLoading.set(true);
     
     this.authService.getUsers().subscribe({
-      next: (response: any) => {
-        console.log('Respuesta completa del backend:', response);
-        console.log('Tipo de respuesta:', typeof response);
+      next: (response: { success: boolean; data: UserDto[] }) => {
+
         
         // Verificar si la respuesta es directamente un array o tiene estructura { data: [] }
-        let users: any[] = [];
+        let users: UserDto[] = [];
         if (Array.isArray(response)) {
           // Si es directamente un array
           users = response;
@@ -772,14 +771,14 @@ export class UsersComponent implements OnInit {
           users = [];
         }
         
-        const processedUsers = users.map((user: any) => {
+        const processedUsers = users.map((user: UserDto) => {
           let userTypeId = user.userTypeId;
           
           // Si no tiene userTypeId pero tiene roleName o userTypeName, buscar el ID correspondiente
           if (!userTypeId && (user.roleName || user.userTypeName)) {
             const typeName = user.roleName || user.userTypeName;
             const matchedType = this.userTypes.find(type => 
-              type.name?.toLowerCase() === typeName.toLowerCase()
+              type.name?.toLowerCase() === typeName?.toLowerCase()
             );
             userTypeId = matchedType ? matchedType.id : userTypeId;
           }
@@ -797,8 +796,7 @@ export class UsersComponent implements OnInit {
           };
         });
         
-        console.log('Usuarios procesados:', processedUsers);
-        console.log('Cantidad de usuarios:', processedUsers.length);
+
         
         this.dataSource.data = processedUsers;
         // Forzar actualización de la tabla
@@ -810,7 +808,7 @@ export class UsersComponent implements OnInit {
         }
       },
       error: (error) => {
-        console.error('Error al cargar usuarios:', error);
+  
         this.snackBar.open('Error al cargar usuarios: ' + (error.message || 'Error desconocido'), 'Cerrar', { duration: 5000 });
         this.dataSource.data = [];
         this.isLoading.set(false);
@@ -820,28 +818,28 @@ export class UsersComponent implements OnInit {
 
   loadUserTypes(): Promise<void> {
     return new Promise((resolve, reject) => {
-      console.log('Cargando tipos de usuario desde API...');
+  
       this.authService.getAllUserTypes().subscribe({
         next: (response) => {
-          console.log('Tipos de usuario cargados desde dropdown API:', response);
+    
           
           // La respuesta del endpoint dropdown debería ser un array directo
           this.userTypes = Array.isArray(response) ? response : [];
           
-          console.log('User types procesados:', this.userTypes.length + ' tipos cargados');
+    
           resolve();
         },
         error: (error) => {
-          console.error('Error al cargar tipos de usuario desde dropdown:', error);
+    
           this.snackBar.open('Error al cargar tipos de usuario', 'Cerrar', { duration: 3000 });
           // Fallback con tipos básicos
           this.userTypes = [
-            { id: 'admin', name: 'Administrador' },
-            { id: 'manager', name: 'Gerente' },
-            { id: 'employee', name: 'Empleado' },
-            { id: 'viewer', name: 'Visualizador' }
+            { id: 'admin', name: 'Administrador', isActive: true },
+            { id: 'manager', name: 'Gerente', isActive: true },
+            { id: 'employee', name: 'Empleado', isActive: true },
+            { id: 'viewer', name: 'Visualizador', isActive: true }
           ];
-          console.log('Usando tipos de usuario de fallback:', this.userTypes.length + ' tipos');
+    
           resolve(); // Resolver aún con error para continuar
         }
       });
@@ -921,7 +919,7 @@ export class UsersComponent implements OnInit {
     // Cargar datos completos del usuario desde el backend
     this.authService.getUserById(user.id).subscribe({
       next: (fullUserData) => {
-        console.log('Datos completos del usuario cargados para edición:', fullUserData);
+
         
         const dialogRef = this.dialog.open(EditUserDialogComponent, {
           width: '700px',
@@ -938,7 +936,7 @@ export class UsersComponent implements OnInit {
         this.isLoading.set(false);
       },
       error: (error) => {
-        console.error('Error al cargar datos completos del usuario para edición:', error);
+
         this.snackBar.open('Error al cargar los detalles del usuario', 'Cerrar', { duration: 3000 });
         
         // Fallback: usar los datos que ya tenemos
@@ -964,13 +962,13 @@ export class UsersComponent implements OnInit {
     
     // Cargar datos completos del usuario desde el backend
     this.authService.getUserById(user.id).subscribe({
-      next: (fullUserData: any) => {
-        console.log('Datos completos del usuario cargados:', fullUserData);
+      next: (fullUserData: UserDto) => {
+
         
         // Mapear 'addres' a 'address' para consistencia
         const processedData = {
           ...fullUserData,
-          address: fullUserData.addres || fullUserData.address,
+          address: fullUserData.addres,
           userTypes: this.userTypes
         };
         
@@ -982,7 +980,7 @@ export class UsersComponent implements OnInit {
         this.isLoading.set(false);
       },
       error: (error) => {
-        console.error('Error al cargar datos completos del usuario:', error);
+
         this.snackBar.open('Error al cargar los detalles del usuario', 'Cerrar', { duration: 3000 });
         
         // Fallback: usar los datos que ya tenemos
@@ -997,11 +995,11 @@ export class UsersComponent implements OnInit {
   }
 
   // Métodos de CRUD
-  createUser(userData: any): void {
+  createUser(userData: CreateUserDto): void {
     this.isLoading.set(true);
     
     // Los datos ya vienen formateados del diálogo
-    console.log('Datos a enviar al backend:', userData);
+
     
     this.authService.createUser(userData).subscribe({
       next: (response) => {
@@ -1010,15 +1008,14 @@ export class UsersComponent implements OnInit {
         this.isLoading.set(false);
       },
       error: (error) => {
-        console.error('Error al crear usuario:', error);
-        console.error('Detalles del error:', error.error);
+        
         this.snackBar.open('Error al crear usuario: ' + (error.error?.title || error.message), 'Cerrar', { duration: 5000 });
         this.isLoading.set(false);
       }
     });
   }
 
-  updateUser(id: string, userData: any): void {
+  updateUser(id: string, userData: UpdateUserDto): void {
     this.isLoading.set(true);
     this.authService.updateUser(id, userData).subscribe({
       next: (response) => {
@@ -1027,7 +1024,7 @@ export class UsersComponent implements OnInit {
         this.isLoading.set(false);
       },
       error: (error) => {
-        console.error('Error al actualizar usuario:', error);
+  
         this.snackBar.open('Error al actualizar usuario', 'Cerrar', { duration: 3000 });
         this.isLoading.set(false);
       }
@@ -1042,7 +1039,7 @@ export class UsersComponent implements OnInit {
           this.loadUsers(); // Recargar lista
         },
         error: (error) => {
-          console.error('Error al eliminar usuario:', error);
+    
           this.snackBar.open('Error al eliminar usuario', 'Cerrar', { duration: 3000 });
         }
       });
@@ -1076,7 +1073,7 @@ export class UsersComponent implements OnInit {
     // Si se pasa solo el ID, buscar en el array de tipos
     const userTypeId = typeof user === 'string' ? user : user.userTypeId;
     const userType = this.userTypes.find(type => type.id === userTypeId);
-    return userType ? userType.name : (userTypeId || 'Sin tipo');
+    return userType ? (userType.name || 'Sin tipo') : (userTypeId || 'Sin tipo');
   }
 
   getUserTypeClass(user: ExtendedUserDto | string): string {
@@ -1088,7 +1085,7 @@ export class UsersComponent implements OnInit {
       // Si se pasa solo el ID, buscar en el array de tipos
       const userTypeId = typeof user === 'string' ? user : user.userTypeId;
       const userType = this.userTypes.find(type => type.id === userTypeId);
-      typeName = userType ? userType.name : '';
+      typeName = userType ? (userType.name || '') : '';
     }
     
     if (!typeName) return 'type-default';
@@ -1113,7 +1110,7 @@ export class UsersComponent implements OnInit {
       // Si se pasa solo el ID, buscar en el array de tipos
       const userTypeId = typeof user === 'string' ? user : user.userTypeId;
       const userType = this.userTypes.find(type => type.id === userTypeId);
-      typeName = userType ? userType.name : '';
+      typeName = userType ? (userType.name || '') : '';
     }
     
     if (!typeName) return 'person';
@@ -1513,7 +1510,7 @@ export class CreateUserDialogComponent implements OnInit {
   showAddFieldSection = false;
 
   // Gestión de roles
-  availableRoles: any[] = [];
+  availableRoles: RoleDto[] = [];
   selectedRoles: string[] = [];
   loadingRoles = false;
 
@@ -1545,15 +1542,14 @@ export class CreateUserDialogComponent implements OnInit {
     
     this.authService.getAllRoles().subscribe({
       next: (roles) => {
-        console.log('Respuesta del servidor:', roles);
+
         // Asegurar que la respuesta sea un array
         this.availableRoles = Array.isArray(roles) ? roles : [];
         this.loadingRoles = false;
-        console.log('Roles disponibles cargados:', this.availableRoles.length + ' roles');
+
       },
       error: (error) => {
-        console.error('Error al cargar roles desde la API:', error);
-        console.log('Status:', error.status, 'Message:', error.message);
+
         this.loadingRoles = false;
         // Fallback con roles de ejemplo para poder probar
         this.availableRoles = [
@@ -1561,14 +1557,14 @@ export class CreateUserDialogComponent implements OnInit {
           { id: '2', name: 'Usuario', description: 'Acceso básico al sistema' },
           { id: '3', name: 'Gerente', description: 'Acceso de gestión' }
         ];
-        console.log('Usando roles de fallback:', this.availableRoles.length + ' roles');
+
       }
     });
   }
 
   onRolesChange(selectedRoles: string[]) {
     this.selectedRoles = selectedRoles || [];
-    console.log('Roles seleccionados:', this.selectedRoles);
+
   }
 
   // Métodos para campos adicionales
@@ -1627,9 +1623,7 @@ export class CreateUserDialogComponent implements OnInit {
         roleIds: this.selectedRoles.length > 0 ? this.selectedRoles : undefined
       };
       
-      console.log('Datos del usuario a crear:', userData);
-      console.log('UserTypeId seleccionado:', formValue.userTypeId);
-      console.log('Roles seleccionados:', this.selectedRoles);
+
       
       this.dialogRef.close(userData);
     }
@@ -1926,7 +1920,7 @@ export class EditUserDialogComponent {
 
   // Gestión de roles
   private authService = inject(AuthService);
-  availableRoles: any[] = [];
+  availableRoles: RoleDto[] = [];
   selectedRoles: string[] = [];
   loadingRoles = false;
 
@@ -2392,7 +2386,7 @@ export class ViewUserDialogComponent {
     return 'person';
   }
 
-  getRoleIcon(role: UserRole): string {
+  getRoleIcon(role: RoleDto): string {
     // Mapear nombres de roles a iconos
     const icons: { [key: string]: string } = {
       'Administrador': 'admin_panel_settings',
@@ -2402,7 +2396,7 @@ export class ViewUserDialogComponent {
       'Editor': 'edit',
       'Viewer': 'visibility'
     };
-    return icons[role.name] || 'assignment_ind';
+    return icons[role.name || ''] || 'assignment_ind';
   }
 
   formatDate(date: Date | string): string {

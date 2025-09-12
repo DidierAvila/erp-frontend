@@ -760,7 +760,7 @@ export class RolesComponent implements OnInit, AfterViewInit {
         this.loadRoles();
       },
       error: (error) => {
-        console.error('Error creating role:', error);
+  
         this.snackBar.open('Error al crear el rol', 'Cerrar', { duration: 3000 });
       },
       complete: () => {
@@ -784,7 +784,7 @@ export class RolesComponent implements OnInit, AfterViewInit {
         this.loadRoles();
       },
       error: (error) => {
-        console.error('Error updating role:', error);
+  
         this.snackBar.open('Error al actualizar el rol', 'Cerrar', { duration: 3000 });
       },
       complete: () => {
@@ -801,7 +801,7 @@ export class RolesComponent implements OnInit, AfterViewInit {
           this.loadRoles();
         },
         error: (error) => {
-          console.error('Error deleting role:', error);
+    
           this.snackBar.open('Error al eliminar el rol', 'Cerrar', { duration: 3000 });
         }
       });
@@ -821,7 +821,7 @@ export class RolesComponent implements OnInit, AfterViewInit {
         this.loadRoles();
       },
       error: (error) => {
-        console.error('Error duplicating role:', error);
+  
         this.snackBar.open('Error al duplicar el rol', 'Cerrar', { duration: 3000 });
       }
     });

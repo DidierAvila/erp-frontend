@@ -5,9 +5,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatMenuModule } from '@angular/material/menu';
 import { RouterModule } from '@angular/router';
-import { SidebarService, PermissionsService } from '../../../core/services';
-import { Observable, map } from 'rxjs';
+import { SidebarService, AuthService } from '../../../core/services';
+import { NavigationItem } from '../../../core/models';
+import { Observable, map, switchMap, startWith, filter } from 'rxjs';
 
 interface MenuItem {
   label: string;
@@ -31,6 +33,7 @@ interface MenuItem {
     MatButtonModule,
     MatExpansionModule,
     MatTooltipModule,
+    MatMenuModule,
     RouterModule
   ],
   template: `
@@ -52,21 +55,21 @@ interface MenuItem {
           @for (item of (filteredMenuItems$ | async) || []; track item.label) {
             @if (item.children && item.children.length > 0) {
               <!-- Menu con submenu -->
-              <mat-expansion-panel class="menu-expansion" [hideToggle]="!isExpanded()">
-                <mat-expansion-panel-header class="expansion-header">
-                  <mat-panel-title class="panel-title">
-                    <mat-icon [matTooltip]="!isExpanded() ? item.label : ''" 
-                             [matTooltipDisabled]="isExpanded()"
-                             matTooltipPosition="right">
-                      {{ item.icon }}
-                    </mat-icon>
-                    @if (isExpanded()) {
-                      <span class="menu-text">{{ item.label }}</span>
-                    }
-                  </mat-panel-title>
-                </mat-expansion-panel-header>
-                
-                @if (isExpanded()) {
+              @if (isExpanded()) {
+                <mat-expansion-panel class="menu-expansion" [hideToggle]="!isExpanded()">
+                  <mat-expansion-panel-header class="expansion-header">
+                    <mat-panel-title class="panel-title">
+                      <mat-icon [matTooltip]="!isExpanded() ? item.label : ''" 
+                               [matTooltipDisabled]="isExpanded()"
+                               matTooltipPosition="right">
+                        {{ item.icon }}
+                      </mat-icon>
+                      @if (isExpanded()) {
+                        <span class="menu-text">{{ item.label }}</span>
+                      }
+                    </mat-panel-title>
+                  </mat-expansion-panel-header>
+                  
                   <div class="submenu-container">
                     @for (child of item.children; track child.label) {
                       <a mat-list-item [routerLink]="child.route" 
@@ -77,8 +80,25 @@ interface MenuItem {
                       </a>
                     }
                   </div>
-                }
-              </mat-expansion-panel>
+                </mat-expansion-panel>
+              } @else {
+                <!-- Menu colapsado con submenu - mostrar como botón con menú -->
+                <button mat-list-item 
+                        class="menu-item collapsed-menu"
+                        [matMenuTriggerFor]="submenuMenu"
+                        [matTooltip]="item.label"
+                        matTooltipPosition="right">
+                  <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+                </button>
+                <mat-menu #submenuMenu="matMenu" xPosition="after" yPosition="below">
+                  @for (child of item.children; track child.label) {
+                    <a mat-menu-item [routerLink]="child.route" class="submenu-menu-item">
+                      <mat-icon>{{ child.icon }}</mat-icon>
+                      <span>{{ child.label }}</span>
+                    </a>
+                  }
+                </mat-menu>
+              }
             } @else {
               <!-- Menu simple sin submenu -->
               <a mat-list-item [routerLink]="item.route" 
@@ -210,6 +230,30 @@ interface MenuItem {
       color: #1976d2 !important;
     }
 
+    .collapsed-menu {
+      cursor: pointer;
+      border-radius: 8px;
+      margin: 4px 8px;
+      transition: all 0.2s ease;
+    }
+
+    .collapsed-menu:hover {
+      background-color: rgba(25, 118, 210, 0.1);
+    }
+
+    .submenu-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 16px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .submenu-menu-item:hover {
+      background-color: rgba(25, 118, 210, 0.1);
+    }
+
     .main-content {
       padding: 20px;
       transition: margin-left 0.3s ease;
@@ -230,59 +274,61 @@ interface MenuItem {
 export class SidebarComponent implements OnInit {
   
   // Menú filtrado basado en permisos
-  filteredMenuItems$!: Observable<MenuItem[]>;
+  filteredMenuItems$!: Observable<NavigationItem[]>;
   
   constructor(
     public sidebarService: SidebarService,
-    private permissionsService: PermissionsService
+    private authService: AuthService
   ) {
   }
 
   ngOnInit(): void {
-    // Crear observable del menú filtrado por permisos
-    this.filteredMenuItems$ = this.permissionsService.userPermissions$.pipe(
-      map(permissions => this.filterMenuByPermissions(this.menuItems, permissions))
+    // Cargar la navegación del usuario desde el backend
+    this.filteredMenuItems$ = this.authService.currentUser$.pipe(
+      switchMap(user => {
+        if (user) {
+          // Si hay usuario, verificar si ya tenemos navegación cargada
+          return this.authService.navigation$.pipe(
+            switchMap(navigation => {
+              if (navigation.length === 0) {
+                // Solo hacer la llamada si no tenemos navegación cargada
+                return this.authService.getCurrentUserWithPermissions().pipe(
+                  switchMap(() => this.authService.navigation$)
+                );
+              } else {
+                // Ya tenemos navegación, usarla directamente
+                return this.authService.navigation$;
+              }
+            })
+          );
+        } else {
+          // Si no hay usuario, retornar navegación vacía
+          return this.authService.navigation$;
+        }
+      }),
+      map(navigation => this.filterVisibleItems(navigation)),
+      startWith([]) // Empezar con un array vacío mientras se cargan los datos
     );
   }
 
   /**
-   * Filtrar elementos del menú basado en permisos del usuario
+   * Filtrar elementos de navegación basado en la propiedad visible
    */
-  private filterMenuByPermissions(items: MenuItem[], permissions: any): MenuItem[] {
-    if (!permissions) {
-      // Si no hay permisos, solo mostrar dashboard
-      return items.filter(item => item.module === 'dashboard');
-    }
-
+  private filterVisibleItems(items: NavigationItem[]): NavigationItem[] {
     return items.filter(item => {
-      // Verificar si el usuario puede acceder al módulo
-      if (item.module && permissions.canAccess) {
-        const canAccess = permissions.canAccess[item.module as keyof typeof permissions.canAccess];
-        if (!canAccess) {
-          return false;
-        }
+      // Solo mostrar elementos marcados como visibles
+      if (!item.visible) {
+        return false;
       }
 
       // Si tiene hijos, filtrar recursivamente
       if (item.children && item.children.length > 0) {
-        const filteredChildren = this.filterMenuByPermissions(item.children, permissions);
-        if (filteredChildren.length === 0) {
-          return false; // No mostrar el item padre si no tiene hijos accesibles
-        }
-        // Crear una copia del item con los hijos filtrados
-        return Object.assign({}, item, { children: filteredChildren });
+        item.children = this.filterVisibleItems(item.children);
+        // Solo mostrar el padre si tiene al menos un hijo visible
+        return item.children.length > 0;
       }
 
       return true;
-    }).map(item => {
-      // Si tiene hijos, aplicar el filtro a los hijos
-      if (item.children && item.children.length > 0) {
-        return {
-          ...item,
-          children: this.filterMenuByPermissions(item.children, permissions)
-        };
-      }
-      return item;
     });
   }
   
@@ -291,164 +337,6 @@ export class SidebarComponent implements OnInit {
   }
   
   sidenavWidth = computed(() => this.sidebarService.isExpanded() ? 280 : 60);
-
-  menuItems: MenuItem[] = [
-    {
-      label: 'Dashboard',
-      icon: 'dashboard',
-      route: '/dashboard',
-      module: 'dashboard'
-    },
-    {
-      label: 'Administración',
-      icon: 'admin_panel_settings',
-      module: 'auth',
-      children: [
-        { 
-          label: 'Usuarios', 
-          icon: 'people',
-          route: '/users',
-          module: 'auth'
-        },
-        { 
-          label: 'Roles', 
-          icon: 'admin_panel_settings',
-          route: '/roles',
-          module: 'auth'
-        },
-        { 
-          label: 'Permisos', 
-          icon: 'security',
-          route: '/permissions',
-          module: 'auth'
-        },
-        { 
-          label: 'Tipos de Usuario', 
-          icon: 'category',
-          route: '/user-types',
-          module: 'auth'
-        }
-      ]
-    },
-    {
-      label: 'Inventario',
-      icon: 'inventory_2',
-      module: 'inventory',
-      children: [
-        { 
-          label: 'Productos', 
-          icon: 'shopping_bag', 
-          route: '/inventory/products',
-          module: 'inventory'
-        },
-        { 
-          label: 'Categorías', 
-          icon: 'category', 
-          route: '/inventory/categories',
-          module: 'inventory'
-        },
-        { 
-          label: 'Stock', 
-          icon: 'storage', 
-          route: '/inventory/stock',
-          module: 'inventory'
-        },
-        { 
-          label: 'Movimientos', 
-          icon: 'swap_horiz', 
-          route: '/inventory/movements',
-          module: 'inventory'
-        }
-      ]
-    },
-    {
-      label: 'Compras',
-      icon: 'shopping_cart',
-      module: 'purchases',
-      children: [
-        { 
-          label: 'Órdenes de Compra', 
-          icon: 'receipt', 
-          route: '/purchases/orders',
-          module: 'purchases'
-        },
-        { 
-          label: 'Proveedores', 
-          icon: 'business', 
-          route: '/purchases/suppliers',
-          module: 'purchases'
-        },
-        { 
-          label: 'Facturas', 
-          icon: 'description', 
-          route: '/purchases/invoices',
-          module: 'purchases'
-        }
-      ]
-    },
-    {
-      label: 'Ventas',
-      icon: 'point_of_sale',
-      module: 'sales',
-      children: [
-        { 
-          label: 'Órdenes de Venta', 
-          icon: 'sell', 
-          route: '/sales/orders',
-          module: 'sales'
-        },
-        { 
-          label: 'Clientes', 
-          icon: 'people_outline', 
-          route: '/sales/customers',
-          module: 'sales'
-        },
-        { 
-          label: 'Facturas', 
-          icon: 'receipt_long', 
-          route: '/sales/invoices',
-          module: 'sales'
-        },
-        { 
-          label: 'Reportes', 
-          icon: 'analytics', 
-          route: '/sales/reports',
-          module: 'sales'
-        }
-      ]
-    },
-    {
-      label: 'Finanzas',
-      icon: 'account_balance',
-      module: 'finance',
-      children: [
-        { 
-          label: 'Cuentas', 
-          icon: 'account_balance_wallet', 
-          route: '/finance/accounts',
-          module: 'finance'
-        },
-        { 
-          label: 'Transacciones', 
-          icon: 'payment', 
-          route: '/finance/transactions',
-          module: 'finance'
-        },
-        { 
-          label: 'Reportes', 
-          icon: 'assessment', 
-          route: '/finance/reports',
-          module: 'finance'
-        },
-        { 
-          label: 'Presupuesto', 
-          icon: 'savings', 
-          route: '/finance/budget',
-          module: 'finance'
-        }
-      ]
-    }
-  ];
 
   toggleSidebar() {
     this.sidebarService.toggle();

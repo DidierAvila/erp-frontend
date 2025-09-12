@@ -38,11 +38,31 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/user-types/user-types-page.component').then(c => c.UserTypesPageComponent),
     canActivate: [authGuard]
   },
+  {
+    path: 'finance/accounts',
+    loadComponent: () => import('./features/finance/accounts/accounts.component').then(c => c.AccountsComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'finance/transactions',
+    loadComponent: () => import('./features/finance/transactions/transactions.component').then(c => c.TransactionsComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'sales/orders',
+    loadComponent: () => import('./features/sales/sales-order/sales-order.component').then(m => m.SalesOrderComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'sales/invoices',
+    loadComponent: () => import('./features/sales/sales-invoice/sales-invoice.component').then(m => m.SalesInvoiceComponent),
+    canActivate: [authGuard]
+  },
   // Redirects simples (sin guards - los guards se aplican en las rutas de destino)
   { path: 'auth', redirectTo: '/login', pathMatch: 'full' },
-  { path: 'finance', redirectTo: '/dashboard', pathMatch: 'full' },
+  { path: 'finance', redirectTo: '/finance/accounts', pathMatch: 'full' },
   { path: 'inventory', redirectTo: '/inventory/products', pathMatch: 'full' },
   { path: 'purchases', redirectTo: '/dashboard', pathMatch: 'full' },
-  { path: 'sales', redirectTo: '/dashboard', pathMatch: 'full' },
+  { path: 'sales', redirectTo: '/sales/orders', pathMatch: 'full' },
   { path: '**', redirectTo: '/login' }
 ];

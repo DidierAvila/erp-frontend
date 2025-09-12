@@ -581,7 +581,7 @@ export class PermissionsComponent implements OnInit, AfterViewInit {
         this.cdr.detectChanges();
       }
     } catch (error) {
-      console.error('Error loading permissions:', error);
+      
       this.snackBar.open('Error al cargar permisos', 'Cerrar', { duration: 3000 });
     } finally {
       this.isLoading.set(false);
@@ -644,7 +644,7 @@ export class PermissionsComponent implements OnInit, AfterViewInit {
       this.snackBar.open('Permiso creado correctamente', 'Cerrar', { duration: 3000 });
       this.loadPermissions();
     } catch (error) {
-      console.error('Error creating permission:', error);
+
       this.snackBar.open('Error al crear permiso', 'Cerrar', { duration: 3000 });
     } finally {
       this.isLoading.set(false);
@@ -684,7 +684,7 @@ export class PermissionsComponent implements OnInit, AfterViewInit {
       this.snackBar.open('Permiso actualizado correctamente', 'Cerrar', { duration: 3000 });
       this.loadPermissions();
     } catch (error) {
-      console.error('Error updating permission:', error);
+
       this.snackBar.open('Error al actualizar permiso', 'Cerrar', { duration: 3000 });
     } finally {
       this.isLoading.set(false);
@@ -692,7 +692,7 @@ export class PermissionsComponent implements OnInit, AfterViewInit {
   }
 
   duplicatePermission(permission: ExtendedPermission) {
-    console.log('Duplicate permission:', permission);
+
   }
 
   viewRolesWithPermission(permission: ExtendedPermission) {
@@ -708,7 +708,7 @@ export class PermissionsComponent implements OnInit, AfterViewInit {
       this.snackBar.open('Permiso eliminado correctamente', 'Cerrar', { duration: 3000 });
       this.loadPermissions();
     } catch (error) {
-      console.error('Error deleting permission:', error);
+
       this.snackBar.open('Error al eliminar permiso', 'Cerrar', { duration: 3000 });
     }
   }
@@ -784,11 +784,11 @@ export class PermissionsComponent implements OnInit, AfterViewInit {
   }
 
   exportToExcel() {
-    console.log('Export to Excel');
+
   }
 
   exportToPDF() {
-    console.log('Export to PDF');
+
   }
 }
 

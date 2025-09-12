@@ -2,7 +2,7 @@ import { Injectable, computed, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, combineLatest, map, switchMap, of, catchError } from 'rxjs';
 import { AuthService } from './auth.service';
-import { RoleDto, PermissionDto } from '../models/auth.models';
+import { RoleDto, PermissionDto, UserDto } from '../models/auth.models';
 import { environment } from '../../../environments/environment';
 
 export interface MenuPermission {
@@ -44,14 +44,14 @@ export class PermissionsService {
     private http: HttpClient,
     private authService: AuthService
   ) {
-    // Escuchar cambios en el usuario autenticado para cargar permisos
-    this.authService.currentUser$.subscribe(user => {
-      if (user && user.userTypeId) {
-        this.loadUserPermissions(user.userTypeId);
-      } else {
-        this.userPermissionsSubject.next(null);
-      }
-    });
+    // Comentado temporalmente para usar la nueva implementación de permisos en AuthService
+    // this.authService.currentUser$.subscribe(user => {
+    //   if (user && user.userTypeId) {
+    //     this.loadUserPermissions(user.userTypeId);
+    //   } else {
+    //     this.userPermissionsSubject.next(null);
+    //   }
+    // });
   }
 
   /**
@@ -62,10 +62,10 @@ export class PermissionsService {
       next: (role) => {
         const userPermissions = this.mapRoleToUserPermissions(role);
         this.userPermissionsSubject.next(userPermissions);
-        console.log('Permisos del usuario cargados:', userPermissions);
+  
       },
       error: (error) => {
-        console.error('Error al cargar permisos del usuario:', error);
+  
         // En caso de error, crear permisos básicos de solo lectura
         this.createFallbackPermissions(roleId);
       }
@@ -74,15 +74,11 @@ export class PermissionsService {
 
   /**
    * Obtener permisos de un rol desde el backend
+   * NOTA: Método deshabilitado - ahora se usan los permisos del AuthService
    */
   private getRolePermissions(roleId: string): Observable<RoleDto> {
-    return this.http.get<RoleDto>(`${this.apiUrl}/api/Auth/GetRole/${roleId}`).pipe(
-      catchError(error => {
-        console.error('Error al obtener rol del backend:', error);
-        // Crear permisos basados en el rol para desarrollo/testing
-        return of(this.createDevelopmentRole(roleId));
-      })
-    );
+    // Retornar un rol básico sin hacer llamada al backend
+    return of(this.createDevelopmentRole(roleId));
   }
 
   /**
@@ -241,7 +237,7 @@ export class PermissionsService {
   /**
    * Obtener información completa del usuario con permisos
    */
-  getUserInfo(): Observable<{user: any, permissions: UserPermissions | null}> {
+  getUserInfo(): Observable<{user: UserDto | null, permissions: UserPermissions | null}> {
     return combineLatest([
       this.authService.currentUser$,
       this.userPermissions$

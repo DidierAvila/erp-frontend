@@ -15,10 +15,15 @@ export interface UserDto {
   phone?: string;
   userTypeId: string;
   addres?: string;
-  additionalData?: { [key: string]: any };
+  additionalData?: { [key: string]: string | number | boolean };
   roles?: RoleDto[]; // Roles asignados al usuario
   createdAt?: string;
   updatedAt?: string;
+  menuPermissions?: MenuPermissions; // Permisos de menú del usuario
+  // Propiedades adicionales para compatibilidad con el frontend
+  roleName?: string;
+  userTypeName?: string;
+  isActive?: boolean;
 }
 
 export interface CreateUserDto {
@@ -29,7 +34,7 @@ export interface CreateUserDto {
   phone?: string;
   userTypeId: string;
   addres?: string;
-  additionalData?: { [key: string]: any };
+  additionalData?: { [key: string]: string | number | boolean };
   roleIds?: string[]; // IDs de roles a asignar
 }
 
@@ -38,7 +43,7 @@ export interface UpdateUserDto {
   phone?: string;
   userTypeId?: string;
   addres?: string;
-  additionalData?: { [key: string]: any };
+  additionalData?: { [key: string]: string | number | boolean };
   roleIds?: string[]; // IDs de roles a asignar
 }
 
@@ -106,10 +111,73 @@ export interface UpdateUserTypeDto {
 
 export interface UserAdditionalValueResponseDto {
   key?: string;
-  value?: any;
+  value?: string | number | boolean;
   exists: boolean;
 }
 
 export interface UpdateUserAdditionalDataDto {
-  additionalData?: { [key: string]: any };
+  additionalData?: { [key: string]: string | number | boolean };
+}
+
+// Interfaces para permisos de menú
+export interface MenuPermissions {
+  dashboard?: boolean;
+  auth?: ModulePermissions;
+  inventory?: ModulePermissions;
+  purchases?: ModulePermissions;
+  sales?: ModulePermissions;
+  finance?: ModulePermissions;
+}
+
+export interface ModulePermissions {
+  access?: boolean;
+  create?: boolean;
+  read?: boolean;
+  update?: boolean;
+  delete?: boolean;
+  submodules?: { [key: string]: ModulePermissions };
+}
+
+// Respuesta del endpoint /api/Auth/me
+export interface NavigationItem {
+  id: string;
+  label: string;
+  route: string | null;
+  icon: string;
+  order: number;
+  visible: boolean;
+  children: NavigationItem[];
+}
+
+export interface UserPermissions {
+  [key: string]: {
+    read: boolean;
+    create: boolean;
+    edit: boolean;
+    delete: boolean;
+    export: boolean;
+    import: boolean;
+  };
+}
+
+export interface UserMeResponse {
+  success: boolean;
+  data: {
+    user: {
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+      roleId: string;
+      avatar: string;
+    };
+    navigation: NavigationItem[];
+    permissions: UserPermissions;
+  };
+}
+
+// Interfaz legacy para compatibilidad
+export interface UserMeResponseLegacy {
+  user: UserDto;
+  permissions: MenuPermissions;
 }

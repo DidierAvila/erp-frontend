@@ -6,7 +6,7 @@ export interface ProblemDetails {
   status?: number;
   detail?: string;
   instance?: string;
-  [key: string]: any;
+  [key: string]: string | number | boolean | undefined;
 }
 
 export interface ApiResponse<T> {

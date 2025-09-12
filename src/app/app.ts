@@ -10,9 +10,9 @@ import { MatDividerModule } from '@angular/material/divider';
 import { SidebarComponent } from './shared/components/sidebar/sidebar.component';
 import { AuthService } from './core/services/auth.service';
 import { SidebarService } from './core/services/sidebar.service';
-import { PermissionsService } from './core/services/permissions.service';
+
 import { CommonModule } from '@angular/common';
-import { Observable, map, combineLatest } from 'rxjs';
+import { Observable, map, combineLatest, take, distinctUntilChanged } from 'rxjs';
 
 @Component({
   selector: 'app-root',
@@ -43,10 +43,10 @@ export class App {
   constructor(
     private router: Router,
     public authService: AuthService,
-    public sidebarService: SidebarService,
-    public permissionsService: PermissionsService
+    public sidebarService: SidebarService
+    // public permissionsService: PermissionsService // Comentado - usando AuthService
   ) {
-    // Crear un Observable basado en el currentUser$ con debouncing para evitar cambios rápidos
+    // Observable para verificar si el usuario está autenticado
     this.isAuthenticated$ = this.authService.currentUser$.pipe(
       map(user => {
         const hasUser = !!user;
@@ -56,7 +56,37 @@ export class App {
     );
 
     // Observable combinado con información del usuario y permisos
-    this.userInfo$ = this.permissionsService.getUserInfo();
+    this.userInfo$ = this.authService.currentUser$.pipe(
+      map(user => ({ user, permissions: user?.menuPermissions || null }))
+    );
+
+    // Inicializar permisos del usuario si está autenticado
+    this.initializeUserPermissions();
+  }
+
+  private initializeUserPermissions(): void {
+    // Verificar si necesitamos cargar permisos solo una vez al inicio
+    this.authService.currentUser$.pipe(
+      distinctUntilChanged(),
+      take(1)
+    ).subscribe(user => {
+      if (user && !user.menuPermissions) {
+        // Verificar si ya tenemos navegación cargada para evitar llamadas duplicadas
+        this.authService.navigation$.pipe(take(1)).subscribe(navigation => {
+          if (navigation.length === 0) {
+            // Solo hacer la llamada si no tenemos datos cargados
+            this.authService.getCurrentUserWithPermissions().pipe(take(1)).subscribe({
+              next: (response) => {
+      
+              },
+              error: (error) => {
+
+              }
+            });
+          }
+        });
+      }
+    });
   }
 
   logout() {
